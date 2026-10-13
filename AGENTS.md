@@ -68,6 +68,17 @@ truth. Source: HSY sorting guide (Helsinki region).
 4. Real model calls
 5. Eval script over `EVAL_DATA_DIR`, UI polish, "show what happened" view
 
+Step 4 must also:
+
+- Fall back to the mock classifier when `MODEL_API_KEY` is missing.
+- Show a visible "mock mode" label in the UI when the mock is in use.
+- Add a "Configuration" section to the README: an env var table, how to
+  get your own key, and a recommendation to set a spend cap at the
+  provider.
+
+At launch: add links to the live demo and the blog post, plus a
+screenshot or GIF, at the top of the README.
+
 ## Constraints
 
 - One server, Docker Compose. No Kubernetes, no IaC.
