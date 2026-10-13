@@ -6,3 +6,19 @@ tmp/
 *.sqlite
 test-results/
 playwright-report/
+
+# Merged from the AdonisJS starter kit
+public/assets
+.env.local
+.env.production.local
+.env.development.local
+
+# Logs
+npm-debug.log
+yarn-error.log
+
+# Editors and platform
+.fleet
+.idea
+.vscode
+.DS_Store
