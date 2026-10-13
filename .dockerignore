@@ -1,0 +1,12 @@
+.git
+.githooks
+node_modules
+build
+tmp
+.env
+.env.*
+!.env.example
+test-results
+playwright-report
+coverage
+*.log
