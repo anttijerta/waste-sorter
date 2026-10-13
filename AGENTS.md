@@ -17,7 +17,7 @@ the user only uploads an image and sees results.
 
 - Code, identifiers, comments, commit messages: English
 - UI text: Finnish (category labels below)
-- README: Finnish
+- README: English
 
 ## Categories
 
