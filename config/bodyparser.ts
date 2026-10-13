@@ -49,9 +49,11 @@ const bodyParserConfig = defineConfig({
    */
   multipart: {
     /**
-     * Automatically process uploaded files into the system tmp directory.
+     * Never write uploads to disk. Auto-processing would stream every file
+     * into the system tmp directory and leave it there. Routes that accept
+     * files read them in memory via `request.multipart` instead.
      */
-    autoProcess: true,
+    autoProcess: false,
 
     /**
      * Normalize empty string values to null.
@@ -59,10 +61,10 @@ const bodyParserConfig = defineConfig({
     convertEmptyStringsToNull: true,
 
     /**
-     * Routes where multipart processing is handled manually.
-     * Uploaded images are read into memory and must never touch the disk.
+     * Routes where multipart processing is handled manually. Unused,
+     * because auto-processing is disabled for every route.
      */
-    processManually: ['/api/classify'],
+    processManually: [],
 
     /**
      * Maximum accepted payload size for multipart requests.

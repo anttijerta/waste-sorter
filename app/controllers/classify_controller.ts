@@ -11,9 +11,8 @@ const JPEG_MAGIC = Buffer.from([0xff, 0xd8, 0xff])
 const INVALID_IMAGE = 'Kuva puuttuu tai se ei kelpaa. Lähetä JPEG-kuva, enintään 2 Mt.'
 
 /**
- * Reads the "image" part into memory. This route is excluded from the
- * bodyparser's automatic processing (config/bodyparser.ts), which would
- * otherwise write the upload to a temp file on disk.
+ * Reads the "image" part into memory. Bodyparser auto-processing is
+ * disabled (config/bodyparser.ts), so the upload never touches the disk.
  *
  * Returns null when the part is missing or over the size limit.
  */
