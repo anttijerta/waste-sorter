@@ -1,0 +1,8 @@
+.env
+*.env
+node_modules/
+build/
+tmp/
+*.sqlite
+test-results/
+playwright-report/
