@@ -31,4 +31,10 @@ export default await Env.create(new URL('../', import.meta.url), {
 
   // Database
   DB_PATH: Env.schema.string.optional(),
+
+  // Usage caps
+  RATE_LIMIT_PER_IP_PER_MINUTE: Env.schema.number.optional(),
+  RATE_LIMIT_PER_IP_DAILY: Env.schema.number.optional(),
+  GLOBAL_MONTHLY_CAP_EUR: Env.schema.number.optional(),
+  TRUSTED_PROXIES: Env.schema.string.optional(),
 })

@@ -4,4 +4,21 @@
  * Run "node ace migration:run" command to re-generate this file
  */
 
-export {}
+import { BaseModel, column } from '@adonisjs/lucid/orm'
+
+export class UsageEventSchema extends BaseModel {
+  static $columns = ['costEur', 'createdAtMs', 'day', 'id', 'ipHash', 'month'] as const
+  $columns = UsageEventSchema.$columns
+  @column()
+  declare costEur: number
+  @column()
+  declare createdAtMs: bigint | number
+  @column()
+  declare day: string
+  @column({ isPrimary: true })
+  declare id: number
+  @column()
+  declare ipHash: string
+  @column()
+  declare month: string
+}

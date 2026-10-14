@@ -1,7 +1,8 @@
 import { performance } from 'node:perf_hooks'
 import app from '@adonisjs/core/services/app'
 import env from '#start/env'
-import { costUsd } from '#classifier/cost'
+import { costUsd, estimateImageCostEur } from '#classifier/cost'
+import { ESTIMATED_USAGE_PER_CALL, USD_TO_EUR } from '#config/pricing'
 import { type Agreement, compareResults } from '#classifier/agreement'
 import { MockClassifier } from '#classifier/mock_classifier'
 import { type Classifier } from '#classifier/types'
@@ -50,9 +51,31 @@ async function runOne(classifier: Classifier, image: Buffer): Promise<ModelResul
 }
 
 export default class ClassifyService {
+  /**
+   * Budget reserved per image before the models are called. Computing it
+   * here makes the app fail at startup when a model has no price.
+   */
+  readonly reserveEur: number
+
   constructor(
     private classifiers: [Classifier, Classifier] = ClassifyService.defaultClassifiers()
-  ) {}
+  ) {
+    this.reserveEur = estimateImageCostEur(classifiers.map((classifier) => classifier.modelId))
+  }
+
+  /**
+   * Settled cost of one image in EUR. A model without a known cost (failed
+   * call) keeps its reserved estimate, so failed calls still count.
+   */
+  settledCostEur(result: ClassifyResponse | undefined): number {
+    if (!result) {
+      return this.reserveEur
+    }
+    return result.models.reduce((sum, model) => {
+      const usd = model.costUsd ?? costUsd(model.modelId, ESTIMATED_USAGE_PER_CALL)!
+      return sum + usd * USD_TO_EUR
+    }, 0)
+  }
 
   /**
    * Demo mode is on while any model is simulated, so the UI can say so.

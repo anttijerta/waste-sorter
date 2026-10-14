@@ -1,6 +1,10 @@
 import { inject } from '@adonisjs/core'
 import type { HttpContext } from '@adonisjs/core/http'
-import ClassifyService from '#services/classify_service'
+import env from '#start/env'
+import ClassifyService, { type ClassifyResponse } from '#services/classify_service'
+import UsageService from '#usage/usage_service'
+import { hashIp } from '#usage/ip_hash'
+import { type LimitReason } from '#usage/limits'
 
 /**
  * The browser re-encodes every upload to JPEG and caps it at 1024 px,
@@ -9,6 +13,12 @@ import ClassifyService from '#services/classify_service'
 export const MAX_IMAGE_BYTES = 2 * 1024 * 1024
 const JPEG_MAGIC = Buffer.from([0xff, 0xd8, 0xff])
 const INVALID_IMAGE = 'Kuva puuttuu tai se ei kelpaa. Lähetä JPEG-kuva, enintään 2 Mt.'
+
+const LIMIT_MESSAGES: Record<LimitReason, string> = {
+  per_minute: 'Liian monta kuvaa lyhyessä ajassa. Odota hetki ja yritä uudelleen.',
+  daily: 'Päivän kuvaraja on täynnä. Voit jatkaa huomenna.',
+  monthly_cap: 'Demo on tauolla tämän kuun loppuun: kuukauden kulukatto on täynnä.',
+}
 
 /**
  * Reads the "image" part into memory. Bodyparser auto-processing is
@@ -44,7 +54,10 @@ async function readImage(request: HttpContext['request']): Promise<Buffer | null
 
 @inject()
 export default class ClassifyController {
-  constructor(private classifyService: ClassifyService) {}
+  constructor(
+    private classifyService: ClassifyService,
+    private usage: UsageService
+  ) {}
 
   /**
    * The image is only held in memory for the duration of the request.
@@ -56,6 +69,26 @@ export default class ClassifyController {
       return response.unprocessableEntity({ error: INVALID_IMAGE })
     }
 
-    return this.classifyService.classify(image)
+    // Reserve budget before calling the models, so concurrent requests
+    // cannot exceed the limits. Invalid uploads above never count.
+    const ipHash = hashIp(request.ip(), env.get('APP_KEY').release(), new Date())
+    const reservation = await this.usage.reserve(ipHash, this.classifyService.reserveEur)
+    if (!reservation.ok) {
+      if (reservation.reason === 'per_minute') {
+        response.header('Retry-After', '60')
+      }
+      return response.tooManyRequests({
+        error: LIMIT_MESSAGES[reservation.reason],
+        code: reservation.reason,
+      })
+    }
+
+    let result: ClassifyResponse | undefined
+    try {
+      result = await this.classifyService.classify(image)
+      return result
+    } finally {
+      await this.usage.settle(reservation.id, this.classifyService.settledCostEur(result))
+    }
   }
 }
