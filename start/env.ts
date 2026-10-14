@@ -35,6 +35,9 @@ export default await Env.create(new URL('../', import.meta.url), {
   // Database
   DB_PATH: Env.schema.string.optional(),
 
+  // Eval: labels.csv, images and results, outside this repo
+  EVAL_DATA_DIR: Env.schema.string.optional(),
+
   // Usage caps
   RATE_LIMIT_PER_IP_PER_MINUTE: Env.schema.number.optional(),
   RATE_LIMIT_PER_IP_DAILY: Env.schema.number.optional(),

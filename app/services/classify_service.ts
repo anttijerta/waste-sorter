@@ -80,13 +80,22 @@ export default class ClassifyService {
   }
 
   /**
-   * Runs both models in parallel on the same image.
+   * Runs both models on the same image: in parallel (the app), or one
+   * after the other when the eval compares latency between the modes.
    */
-  async classify(image: Buffer): Promise<ClassifyResponse> {
-    const [a, b] = await Promise.all([
-      runModel(this.classifiers[0], image, logger),
-      runModel(this.classifiers[1], image, logger),
-    ])
+  async classify(
+    image: Buffer,
+    { sequential = false }: { sequential?: boolean } = {}
+  ): Promise<ClassifyResponse> {
+    const [a, b] = sequential
+      ? [
+          await runModel(this.classifiers[0], image, logger),
+          await runModel(this.classifiers[1], image, logger),
+        ]
+      : await Promise.all([
+          runModel(this.classifiers[0], image, logger),
+          runModel(this.classifiers[1], image, logger),
+        ])
     const agreement: Agreement =
       a.error || b.error ? { agreed: false } : compareResults(a.category, b.category)
 
