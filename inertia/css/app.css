@@ -213,6 +213,11 @@ img {
   background: var(--warn-bg);
   color: var(--warn);
 }
+.banner--demo {
+  border: 1px dashed var(--line-2);
+  background: var(--card);
+  color: var(--ink-2);
+}
 .banner--error {
   background: var(--err-bg);
   color: var(--err);

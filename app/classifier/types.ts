@@ -12,6 +12,8 @@ export type ClassifierOutput = {
 
 export interface Classifier {
   readonly modelId: string
+  /** True for the mock: its results are not real classifications. */
+  readonly simulated: boolean
   classify(image: Buffer): Promise<ClassifierOutput>
 }
 

@@ -5,4 +5,5 @@
 
 export const controllers = {
   Classify: () => import('#controllers/classify_controller'),
+  Home: () => import('#controllers/home_controller'),
 }

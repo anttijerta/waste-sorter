@@ -1,5 +1,6 @@
 import { Head } from '@inertiajs/react'
 import { type ChangeEvent, useEffect, useState } from 'react'
+import { type InertiaProps } from '~/types'
 import DefaultLayout from '~/layouts/default'
 import { downscaleToJpeg } from '~/lib/downscale'
 import { type ClassifyResponse, ClassifyError, classifyImage } from '~/lib/api'
@@ -24,7 +25,7 @@ function formatCost(value: number | null): string {
 /** Running cost per model, in the same order as `result.models`. */
 type SessionTotals = [number, number]
 
-export default function Home() {
+export default function Home({ demoMode }: InertiaProps<{ demoMode: boolean }>) {
   const [state, setState] = useState<State>({ status: 'idle' })
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [sessionTotals, setSessionTotals] = useState<SessionTotals>([0, 0])
@@ -62,6 +63,13 @@ export default function Home() {
   return (
     <>
       <Head title="Lajittele jäte" />
+
+      {demoMode && (
+        <p className="banner banner--demo" role="status" data-testid="demo-mode">
+          <strong>Demotila: mallit ovat simuloituja.</strong> Tulokset eivät ole oikeita
+          luokitteluja.
+        </p>
+      )}
 
       <section className="card">
         <h1 className="card__title">Mihin roska kuuluu?</h1>

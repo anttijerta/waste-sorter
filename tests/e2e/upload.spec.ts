@@ -4,6 +4,9 @@ import { expect, test } from '@playwright/test'
 test('uploading a photo shows results from both models', async ({ page }) => {
   await page.goto('/')
 
+  // The mock classifier is active in tests, so results must be labelled as simulated.
+  await expect(page.getByTestId('demo-mode')).toContainText('Demotila: mallit ovat simuloituja')
+
   // Draw a test image in the browser so no binary fixture lives in the repo.
   const base64 = await page.evaluate(async () => {
     const canvas = document.createElement('canvas')
@@ -44,6 +47,7 @@ test('uploading a photo shows results from both models', async ({ page }) => {
   await expect(results.getByTestId('cost-image').locator('td').first()).toContainText('$')
   await expect(page.getByTestId('costs')).toHaveCount(0)
   await expect(page.getByTestId('agreement')).toBeVisible()
+  await expect(page.getByTestId('demo-mode')).toBeVisible()
 
   const perImage = await usdValues('cost-image')
   expect(await usdValues('cost-1000')).toEqual(perImage.map((cost) => cost * 1000))

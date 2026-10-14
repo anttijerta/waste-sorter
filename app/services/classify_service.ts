@@ -54,6 +54,13 @@ export default class ClassifyService {
     private classifiers: [Classifier, Classifier] = ClassifyService.defaultClassifiers()
   ) {}
 
+  /**
+   * Demo mode is on while any model is simulated, so the UI can say so.
+   */
+  get demoMode(): boolean {
+    return this.classifiers.some((classifier) => classifier.simulated)
+  }
+
   static defaultClassifiers(): [Classifier, Classifier] {
     const delay = app.inTest
       ? { minDelayMs: 0, maxDelayMs: 50 }

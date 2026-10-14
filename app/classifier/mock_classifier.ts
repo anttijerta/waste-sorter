@@ -10,6 +10,8 @@ import { type Classifier, type ClassifierOutput } from '#classifier/types'
  * imitate network latency. Makes no external calls.
  */
 export class MockClassifier implements Classifier {
+  readonly simulated = true
+
   constructor(
     readonly modelId: string,
     private options: { minDelayMs: number; maxDelayMs: number }

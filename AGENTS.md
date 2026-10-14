@@ -48,6 +48,9 @@ truth. Source: HSY sorting guide (Helsinki region).
 - Models must return one category id from the list above, as structured
   output. Anything else is treated as `unrecognized`.
 - Same category from both → agreement (green). Different → show both.
+- While the mock classifier is active, the UI shows a clear demo mode
+  label ("Demotila: mallit ovat simuloituja") so results are not mistaken
+  for real classifications.
 - Cost per call = token usage from the API response × price table in
   `config/pricing.ts`. The table includes the date prices were checked.
 - Show, per model: cost per image, total for the session, and "1,000 images
@@ -79,7 +82,8 @@ Step 3 must also:
 Step 4 must also:
 
 - Fall back to the mock classifier when `MODEL_API_KEY` is missing.
-- Show a visible "mock mode" label in the UI when the mock is in use.
+- Keep the demo mode label (already in place) tied to the fallback: it
+  shows whenever any model is simulated and disappears with real models.
 - Add a "Configuration" section to the README: an env var table, how to
   get your own key, and a recommendation to set a spend cap at the
   provider.
