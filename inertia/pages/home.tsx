@@ -11,18 +11,19 @@ type State =
   | { status: 'done'; result: ClassifyResponse }
   | { status: 'error'; message: string; limit: LimitReason | null }
 
-const usd = new Intl.NumberFormat('fi-FI', {
+const eur = new Intl.NumberFormat('fi-FI', {
   style: 'currency',
-  currency: 'USD',
+  currency: 'EUR',
   minimumFractionDigits: 2,
   maximumFractionDigits: 6,
 })
 
-function formatCost(value: number | null): string {
-  return value === null ? '–' : usd.format(value)
+/** Costs arrive as integer micro-euros. */
+function formatCost(microEur: number | null): string {
+  return microEur === null ? '–' : eur.format(microEur / 1_000_000)
 }
 
-/** Running cost per model, in the same order as `result.models`. */
+/** Running cost per model in micro-euros, in the same order as `result.models`. */
 type SessionTotals = [number, number]
 
 export default function Home({ demoMode }: InertiaProps<{ demoMode: boolean }>) {
@@ -48,8 +49,8 @@ export default function Home({ demoMode }: InertiaProps<{ demoMode: boolean }>) 
       const result = await classifyImage(jpeg)
       setState({ status: 'done', result })
       setSessionTotals(([a, b]) => [
-        a + (result.models[0].costUsd ?? 0),
-        b + (result.models[1].costUsd ?? 0),
+        a + (result.models[0].costMicroEur ?? 0),
+        b + (result.models[1].costMicroEur ?? 0),
       ])
     } catch (error) {
       if (error instanceof ClassifyError) {
@@ -152,13 +153,15 @@ function Results({
     {
       label: 'Hinta tälle kuvalle',
       testId: 'cost-image',
-      values: models.map((model) => model.costUsd),
+      values: models.map((model) => model.costMicroEur),
     },
     { label: 'Istunto yhteensä', testId: 'cost-session', values: sessionTotals },
     {
       label: '1 000 kuvaa maksaisi',
       testId: 'cost-1000',
-      values: models.map((model) => (model.costUsd === null ? null : model.costUsd * 1000)),
+      values: models.map((model) =>
+        model.costMicroEur === null ? null : model.costMicroEur * 1000
+      ),
     },
   ]
 
@@ -208,7 +211,7 @@ function Results({
               <tr key={row.testId} data-testid={row.testId}>
                 <th scope="row">{row.label}</th>
                 {row.values.map((value, index) => (
-                  <td key={index} className="num" data-usd={value ?? ''}>
+                  <td key={index} className="num" data-micro-eur={value ?? ''}>
                     {formatCost(value)}
                   </td>
                 ))}

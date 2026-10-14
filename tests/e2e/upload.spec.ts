@@ -12,11 +12,11 @@ test('uploading a photo shows results from both models', async ({ page }) => {
 
   const upload = () => uploadInBrowser(page, image)
   const results = page.getByTestId('results')
-  const usdValues = (rowTestId: string) =>
+  const microEurValues = (rowTestId: string) =>
     results
       .getByTestId(rowTestId)
       .locator('td')
-      .evaluateAll((cells) => cells.map((cell) => Number(cell.getAttribute('data-usd'))))
+      .evaluateAll((cells) => cells.map((cell) => Number(cell.getAttribute('data-micro-eur'))))
 
   await upload()
 
@@ -25,19 +25,19 @@ test('uploading a photo shows results from both models', async ({ page }) => {
   for (const row of ['category', 'latency', 'cost-image', 'cost-session', 'cost-1000']) {
     await expect(results.getByTestId(row).locator('td')).toHaveCount(2)
   }
-  await expect(results.getByTestId('cost-image').locator('td').first()).toContainText('$')
+  await expect(results.getByTestId('cost-image').locator('td').first()).toContainText('€')
   await expect(page.getByTestId('costs')).toHaveCount(0)
   await expect(page.getByTestId('agreement')).toBeVisible()
   await expect(page.getByTestId('demo-mode')).toBeVisible()
 
-  const perImage = await usdValues('cost-image')
-  expect(await usdValues('cost-1000')).toEqual(perImage.map((cost) => cost * 1000))
-  expect(await usdValues('cost-session')).toEqual(perImage)
+  const perImage = await microEurValues('cost-image')
+  expect(await microEurValues('cost-1000')).toEqual(perImage.map((cost) => cost * 1000))
+  expect(await microEurValues('cost-session')).toEqual(perImage)
 
   // The mock is deterministic, so the same image costs the same again and
   // each model's session total doubles independently.
   await upload()
-  await expect.poll(() => usdValues('cost-session')).toEqual(perImage.map((cost) => cost * 2))
+  await expect.poll(() => microEurValues('cost-session')).toEqual(perImage.map((cost) => cost * 2))
 
   // The preview shows the same blob that was uploaded: it must be downscaled.
   const width = await page
