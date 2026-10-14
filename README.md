@@ -74,7 +74,7 @@ All settings are environment variables; `.env.example` lists them with local def
 - [x] 1. Skeleton with a mock classifier
 - [x] 2. Docker image + CI workflow that pushes to GHCR
 - [x] 3. Usage caps: per IP and global monthly
-- [ ] 4. Real model calls
+- [x] 4. Real model calls
 - [ ] 5. Eval script, UI polish, "show what happened" view
 
 On every push to `main`, CI runs the tests, then builds a linux/amd64 image and pushes it to `ghcr.io/anttijerta/waste-sorter`, tagged with the commit SHA and `latest`.
