@@ -48,22 +48,30 @@ truth. Source: HSY sorting guide (Helsinki region).
   across days. Usage rows are deleted after 35 days.
 - Usage is reserved before the models are called, so concurrent requests
   cannot exceed a limit. Failed calls still count.
-- Both models are called in parallel with the same prompt and image.
+- Both models are called in parallel with the same prompt, image and
+  settings (OpenAI Responses API, `store: false`, no automatic retries).
+- Tests and CI never call the real API: the test environment always uses
+  the mock classifiers.
 - Models must return one category id from the list above, as structured
   output. Anything else is treated as `unrecognized`.
 - Same category from both → agreement (green). Different → show both.
 - While the mock classifier is active, the UI shows a clear demo mode
   label ("Demotila: mallit ovat simuloituja") so results are not mistaken
   for real classifications.
-- Cost per call = token usage from the API response × price table in
-  `config/pricing.ts`. The table includes the date prices were checked.
+- Cost per call = token usage from the API response (reasoning tokens
+  included) × price table in `config/pricing.ts`. The table includes the
+  date prices were checked. Costs are integer micro-euros everywhere.
 - Show, per model: cost per image, total for the session, and "1,000 images
   would cost". Every figure belongs to exactly one model; no combined totals.
 
 ## Configuration (environment variables)
 
-- `MODEL_A`, `MODEL_B`: model ids
-- `MODEL_API_KEY`: never in code, images, logs or the repo
+- `MODEL_A`, `MODEL_B`: model ids (default `gpt-6-luna`, `gpt-6.1-sol`)
+- `MODEL_API_KEY`: never in code, images, logs or the repo. Empty means demo
+  mode with mock classifiers.
+- `MODEL_REASONING_EFFORT` (default `low`): one value for both models,
+  validated per model at startup
+- `MODEL_TIMEOUT_MS` (default 20000): per call, no automatic retries
 - `DB_PATH`: SQLite file, default `/app/data/db.sqlite3`. Never inside `tmp/`.
 - `RATE_LIMIT_PER_IP_PER_MINUTE` (default 5), `RATE_LIMIT_PER_IP_DAILY`
   (default 20)
@@ -86,14 +94,14 @@ truth. Source: HSY sorting guide (Helsinki region).
 4. Real model calls
 5. Eval script over `EVAL_DATA_DIR`, UI polish, "show what happened" view
 
-Step 3 must also:
+Step 3 must also (done):
 
 - Move the SQLite file out of `tmp/` into its own `data/` directory
   (e.g. `/app/data/db.sqlite3` in the container), configurable via an
   env variable (e.g. `DB_PATH`). The database must not share a directory
   with temporary files.
 
-Step 4 must also:
+Step 4 must also (done):
 
 - Fall back to the mock classifier when `MODEL_API_KEY` is missing.
 - Keep the demo mode label (already in place) tied to the fallback: it

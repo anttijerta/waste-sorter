@@ -4,7 +4,7 @@ A portfolio demo that shows AI as one step inside a product, not as a chat: you 
 
 ## 🔍 How it works
 
-> **Models are currently mocked.** The classifier returns a deterministic fake category, latency and token usage. No external API is called yet.
+Model A is `gpt-6-luna` and model B is `gpt-6.1-sol`, both called through the OpenAI Responses API with the same prompt, image and reasoning effort. Without an API key the app runs in **demo mode**: both models are simulated, and the UI says so.
 
 ```mermaid
 flowchart LR
@@ -18,37 +18,56 @@ flowchart LR
 ```
 
 1. The browser downscales the image and re-encodes it as JPEG.
-2. The server validates size (max 2 MB) and type, then sends the same image to both models in parallel.
-3. Each model returns one category id from a fixed list (`config/categories.ts`). Anything else counts as "unrecognized".
+2. The server validates size (max 2 MB and 1024 px) and type, then sends the same image to both models in parallel.
+3. Each model must answer with structured output whose only field is one category id from a fixed list (`config/categories.ts`). Anything else counts as "unrecognized".
 4. If both models return the same category, they agree. If not, both answers are shown.
-5. Cost per call is token usage × the price table in `config/pricing.ts`. The UI shows the cost per image, the session total, and what 1,000 images would cost.
+5. Cost per call is token usage from the API response, reasoning tokens included, × the price table in `config/pricing.ts`. The UI shows each model's cost per image, session total, and what 1,000 images would cost.
 
 ## 🔒 Privacy
 
-- Images are never stored or logged. They are held in memory only for the duration of the request.
+- Images are never stored or logged by this app. They are held in memory only for the duration of the request.
+- To classify an image, the app sends it to the OpenAI API with response storage turned off (`store: false`). OpenAI's API data policies apply to that request.
 - EXIF metadata (such as location) is stripped in the browser, because the canvas re-encode does not keep it.
 - Rate limiting never stores the raw IP: the key is an HMAC-SHA256 of the IP with the app secret and the UTC date, so it cannot be linked across days. Usage rows are deleted after 35 days.
 
 ## 🚦 Usage limits
 
-| Variable                       | Default | Limit                                                    |
-| ------------------------------ | ------- | -------------------------------------------------------- |
-| `RATE_LIMIT_PER_IP_PER_MINUTE` | 5       | images per IP per minute                                 |
-| `RATE_LIMIT_PER_IP_DAILY`      | 20      | images per IP per UTC day                                |
-| `GLOBAL_MONTHLY_CAP_EUR`       | 5       | estimated spend per UTC month (from `config/pricing.ts`) |
-
-Budget is reserved before the models are called, so parallel requests cannot exceed the cap. Failed calls still count. When a limit is hit, the API returns 429 and the UI says whether it is the user's limit or the demo is paused for the month.
+Each IP may classify 5 images per minute and 20 per UTC day, and all users together may spend an estimated 5 € per UTC month (see Configuration below). Budget is reserved before the models are called, so parallel requests cannot exceed the cap. Failed calls still count. When a limit is hit, the API returns 429 and the UI says whether it is the user's limit or the demo is paused for the month.
 
 **Behind a reverse proxy**, set `TRUSTED_PROXIES` to the proxy's IP or subnet. Only that source may set `X-Forwarded-For`; by default nobody is trusted. The Compose network must use a fixed subnet (`ipam.config.subnet`), because Docker assigns subnets dynamically and they can change when containers are recreated. Do not publish the app port directly.
 
+## ⚙️ Configuration
+
+All settings are environment variables; `.env.example` lists them with local defaults.
+
+| Variable                       | Default                     | Purpose                                                                                               |
+| ------------------------------ | --------------------------- | ----------------------------------------------------------------------------------------------------- |
+| `APP_KEY`                      | (required)                  | App secret, also the key for hashing IPs. Generate with `node ace generate:key`.                      |
+| `MODEL_API_KEY`                | empty                       | OpenAI API key. Empty means demo mode with simulated models.                                          |
+| `MODEL_A`, `MODEL_B`           | `gpt-6-luna`, `gpt-6.1-sol` | Model ids. Each needs a price in `config/pricing.ts` and its reasoning efforts in `config/models.ts`. |
+| `MODEL_REASONING_EFFORT`       | `low`                       | Same for both models. The app refuses to start if a model does not support it.                        |
+| `MODEL_TIMEOUT_MS`             | `20000`                     | Timeout per model call. Calls are never retried automatically.                                        |
+| `RATE_LIMIT_PER_IP_PER_MINUTE` | `5`                         | Images per IP per minute.                                                                             |
+| `RATE_LIMIT_PER_IP_DAILY`      | `20`                        | Images per IP per UTC day.                                                                            |
+| `GLOBAL_MONTHLY_CAP_EUR`       | `5`                         | Estimated spend of all users per UTC month.                                                           |
+| `TRUSTED_PROXIES`              | empty                       | Reverse proxy IPs/CIDRs allowed to set `X-Forwarded-For`.                                             |
+| `DB_PATH`                      | `/app/data/db.sqlite3`      | SQLite file for usage counters. Never inside `tmp/`.                                                  |
+
+**Using your own API key**
+
+1. Create an API key in the OpenAI platform dashboard, ideally in a separate project used only for this demo.
+2. Put it in `.env` as `MODEL_API_KEY=…` locally, or in your deployment's secrets. Never commit it.
+3. **Set a monthly budget or spend limit for that project at OpenAI.** `GLOBAL_MONTHLY_CAP_EUR` is an estimate kept by this app; the provider-side limit is the hard stop if something goes wrong.
+
 ## 🧰 Tech stack
 
-| Area     | Tools                                    |
-| -------- | ---------------------------------------- |
-| Backend  | AdonisJS 7, TypeScript, SQLite           |
-| Frontend | Inertia, React 19, Vite                  |
-| Tests    | Vitest (logic), Playwright (upload flow) |
-| Runtime  | Docker, single container, `GET /health`  |
+| Area     | Tools                                       |
+| -------- | ------------------------------------------- |
+| Backend  | AdonisJS 7, TypeScript, SQLite              |
+| Frontend | Inertia, React 19, Vite                     |
+| Tests    | Vitest (logic), Playwright (upload flow)    |
+| Models   | OpenAI Responses API, official `openai` SDK |
+| Runtime  | Docker, single container, `GET /health`     |
 
 ## 📋 Status
 
