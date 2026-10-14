@@ -20,7 +20,14 @@ export type ModelPrice = {
 export const PRICES_CHECKED_AT = '2026-10-14'
 
 export const PRICING: Record<string, ModelPrice> = {
-  'gpt-6-luna': { inputPerMTok: 100_000, cachedInputPerMTok: 10_000, outputPerMTok: 500_000 },
+  'gpt-6-luna': {
+    inputPerMTok: 100_000,
+    cachedInputPerMTok: 10_000,
+    // Not on the pricing page. The prompt caching guide bills cache writes
+    // for GPT-5.6 and later at 1.25× the input rate.
+    cacheWritePerMTok: 125_000,
+    outputPerMTok: 500_000,
+  },
   'gpt-6.1-sol': {
     inputPerMTok: 2_000_000,
     cachedInputPerMTok: 100_000,
@@ -39,8 +46,11 @@ export const USD_TO_EUR = 1
 
 /**
  * Upper bound of token usage for one call, used to reserve budget before
- * the call when the real usage is not known yet. Priced at the plain input
- * rate: prompt caching is disabled, so there are no cache writes.
+ * the call when the real usage is not known yet.
+ *
+ * All input is counted as cache writes: with OpenAI's default prompt
+ * caching a fresh image is billed that way, at 1.25× the input rate,
+ * which is the most an input token can cost.
  *
  * - Output: exactly max_output_tokens, which the API enforces and which
  *   includes reasoning tokens.
@@ -55,7 +65,7 @@ export const USD_TO_EUR = 1
 export const ESTIMATED_USAGE_PER_CALL: TokenUsage = {
   inputTokens: 2000,
   cachedInputTokens: 0,
-  cacheWriteTokens: 0,
+  cacheWriteTokens: 2000,
   outputTokens: MAX_OUTPUT_TOKENS_PER_CALL,
   reasoningTokens: 0,
 }

@@ -38,7 +38,7 @@ function config(runs: number): ConfigSnapshot {
     classifiers: 'openai',
     mode: 'parallel',
     runs,
-    promptCacheMode: 'explicit',
+    promptCacheMode: 'default',
     models: [
       { id: 'gpt-6-luna', reasoningEffort: 'low' },
       { id: 'gpt-6.1-sol', reasoningEffort: 'low' },
@@ -99,21 +99,21 @@ describe('eval report', () => {
         ...config(3),
         mode: 'sequential',
         classifiers: 'mock',
-        promptCacheMode: 'default',
+        promptCacheMode: 'explicit',
       })
-    ).toBe('2026-10-14T16-05-03Z-sequential-3runs-cache-default-mock')
+    ).toBe('2026-10-14T16-05-03Z-sequential-3runs-cache-explicit-mock')
   })
 
   it('shows the prompt cache mode in the configuration snapshot', () => {
-    const explicit = renderMarkdown(results([[evalRow(0)]]))
-    expect(explicit).toContain('- Prompt cache: explicit (no caching, same as the app)')
-
-    const withDefault = renderMarkdown({
-      ...results([[evalRow(0)]]),
-      config: { ...config(1), promptCacheMode: 'default' },
-    })
-    expect(withDefault).toContain(
-      '- Prompt cache: default (OpenAI default caching, not the app setting)'
+    const appSetting = renderMarkdown(results([[evalRow(0)]]))
+    expect(appSetting).toContain(
+      '- Prompt cache: default (OpenAI default caching), same as the app'
     )
+
+    const explicit = renderMarkdown({
+      ...results([[evalRow(0)]]),
+      config: { ...config(1), promptCacheMode: 'explicit' },
+    })
+    expect(explicit).toContain('- Prompt cache: explicit (no caching), not the app setting')
   })
 })

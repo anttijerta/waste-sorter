@@ -12,14 +12,17 @@ import {
 } from '#classifier/types'
 
 /**
- * - explicit: no prompt caching (explicit mode, no breakpoints). The app
- *   always uses this.
- * - default: OpenAI's default implicit caching. Only for eval comparisons.
+ * - default: OpenAI's default implicit prompt caching. The app uses this.
+ * - explicit: no prompt caching (explicit mode, no breakpoints). Only for
+ *   eval comparisons: in eval runs it made gpt-6.1-sol about 4× slower
+ *   and changed one answer, while gpt-6-luna was unaffected.
  */
 export type PromptCacheMode = 'explicit' | 'default'
 
+export const APP_PROMPT_CACHE_MODE: PromptCacheMode = 'default'
+
 export type OpenAIClassifierOptions = {
-  /** Defaults to explicit (no prompt caching) */
+  /** Defaults to APP_PROMPT_CACHE_MODE */
   promptCacheMode?: PromptCacheMode
   client: Pick<OpenAI, 'responses'>
   reasoningEffort: ReasoningEffort
@@ -73,9 +76,8 @@ function parseCategory(response: Response): CategoryId {
  * Classifies an image with an OpenAI model through the Responses API, with
  * structured output restricted to the category ids.
  *
- * Privacy: the response is not stored at OpenAI (store: false), the
- * prompt is not cached, and nothing here logs the image, the request or
- * the API key.
+ * Privacy: the response is not stored at OpenAI (store: false), and
+ * nothing here logs the image, the request or the API key.
  */
 export class OpenAIClassifier implements Classifier {
   readonly simulated = false
@@ -92,11 +94,10 @@ export class OpenAIClassifier implements Classifier {
         {
           model: this.modelId,
           store: false,
-          // Explicit mode with no breakpoints: no prompt caching, so no cache
-          // writes (billed above the input rate) and no cheaper cache reads.
-          // Every call costs the same plain input rate. Only the eval can
-          // switch back to OpenAI's default caching, for comparisons.
-          ...((this.options.promptCacheMode ?? 'explicit') === 'explicit'
+          // The app uses OpenAI's default caching, which bills cache writes
+          // above the input rate (priced in config/pricing.ts). Only the
+          // eval switches to explicit mode with no breakpoints (no caching).
+          ...((this.options.promptCacheMode ?? APP_PROMPT_CACHE_MODE) === 'explicit'
             ? { prompt_cache_options: { mode: 'explicit' as const } }
             : {}),
           reasoning: { effort: this.options.reasoningEffort },

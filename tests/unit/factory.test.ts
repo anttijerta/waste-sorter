@@ -49,7 +49,7 @@ describe('createClassifiers', () => {
     expect(createClient).toHaveBeenCalledExactlyOnceWith('not-a-real-key', 15_000)
   })
 
-  it('uses explicit prompt caching (none) unless the eval overrides it', async () => {
+  it("uses OpenAI's default prompt caching unless the eval overrides it", async () => {
     const create = vi.fn(async () => ({
       status: 'completed',
       output: [],
@@ -63,9 +63,9 @@ describe('createClassifiers', () => {
     const createClient = () => ({ responses: { create } }) as any
 
     for (const [promptCacheMode, expected] of [
-      [undefined, { mode: 'explicit' }],
-      ['explicit', { mode: 'explicit' }],
+      [undefined, undefined],
       ['default', undefined],
+      ['explicit', { mode: 'explicit' }],
     ] as const) {
       create.mockClear()
       const setup = createClassifiers({

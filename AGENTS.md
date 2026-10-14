@@ -49,9 +49,10 @@ truth. Source: HSY sorting guide (Helsinki region).
 - Usage is reserved before the models are called, so concurrent requests
   cannot exceed a limit. Failed calls still count.
 - Both models are called in parallel with the same prompt, image and
-  settings (OpenAI Responses API, `store: false`, prompt caching off with
-  `prompt_cache_options: { mode: 'explicit' }` and no breakpoints, no
-  automatic retries).
+  settings (OpenAI Responses API, `store: false`, OpenAI's default prompt
+  caching, no automatic retries). Explicit cache mode made gpt-6.1-sol
+  about 4× slower in the eval; it is only available as `node ace eval
+--cache-mode=explicit`.
 - Tests and CI never call the real API: the test environment always uses
   the mock classifiers.
 - Models must return one category id from the list above, as structured

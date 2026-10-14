@@ -52,24 +52,6 @@ function logUsage(
 
 const FAILED_MESSAGE = 'Mallin kutsu epäonnistui'
 
-/**
- * Prompt caching is disabled for every call (see OpenAIClassifier). If the
- * API still reports cached or cache-write tokens, the cost no longer
- * matches the plain input rate, so say so.
- */
-function checkCacheUnused(modelId: string, usage: TokenUsage, log: ModelLogger) {
-  if (usage.cachedInputTokens > 0 || usage.cacheWriteTokens > 0) {
-    log.warn(
-      {
-        modelId,
-        cachedInputTokens: usage.cachedInputTokens,
-        cacheWriteTokens: usage.cacheWriteTokens,
-      },
-      'prompt cache used although it is disabled'
-    )
-  }
-}
-
 function checkAgainstEstimate(
   modelId: string,
   usage: TokenUsage,
@@ -106,7 +88,6 @@ export async function runModel(
     const latencyMs = Math.round(performance.now() - started)
     const cost = costMicroEur(classifier.modelId, output.usage)
     logUsage(classifier.modelId, output.usage, cost, latencyMs, log)
-    checkCacheUnused(classifier.modelId, output.usage, log)
     checkAgainstEstimate(classifier.modelId, output.usage, cost, log)
     return {
       modelId: classifier.modelId,
@@ -131,7 +112,6 @@ export async function runModel(
     const cost = usage ? costMicroEur(classifier.modelId, usage) : null
     if (usage) {
       logUsage(classifier.modelId, usage, cost, latencyMs, log)
-      checkCacheUnused(classifier.modelId, usage, log)
       checkAgainstEstimate(classifier.modelId, usage, cost, log)
     }
     return {

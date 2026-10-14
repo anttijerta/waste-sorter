@@ -26,7 +26,7 @@ flowchart LR
 ## 🔒 Privacy
 
 - Images are never stored or logged by this app. They are held in memory only for the duration of the request.
-- To classify an image, the app sends it to the OpenAI API with response storage turned off (`store: false`) and prompt caching disabled. OpenAI's API data policies apply to that request.
+- To classify an image, the app sends it to the OpenAI API with response storage turned off (`store: false`). OpenAI's API data policies apply to that request.
 - EXIF metadata (such as location) is stripped in the browser, because the canvas re-encode does not keep it.
 - Rate limiting never stores the raw IP: the key is an HMAC-SHA256 of the IP with the app secret and the UTC date, so it cannot be linked across days. Usage rows are deleted after 35 days.
 
@@ -108,7 +108,7 @@ node ace eval                # dry run: prints the number of calls and the worst
 node ace eval --yes          # runs both models in parallel per image, like the app
 node ace eval --yes --sequential   # one model after the other, to compare latency
 node ace eval --yes --runs=3       # repeat the set, report consistency and accuracy ranges
-node ace eval --yes --cache-mode=default   # compare with OpenAI's default prompt caching (the app uses none)
+node ace eval --yes --cache-mode=explicit  # compare with prompt caching off (the app uses OpenAI's default caching)
 ```
 
 `EVAL_DATA_DIR` (or `--data-dir`) points to a folder outside this repo with `labels.csv` (`file,expected,difficulty,note`; difficulty is `easy`, `hard` or `oos`) and the photos in `images-jpg/`. Each photo is prepared like the browser does it (upright, max 1024 px, JPEG, metadata such as GPS removed) and classified with the app's own classifier code and settings, at most 20 calls per minute per model. Results go to `EVAL_DATA_DIR/results/` as JSON and Markdown. Without an API key it runs the simulated models and marks the results `mock`.

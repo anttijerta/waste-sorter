@@ -8,7 +8,7 @@ import type { CommandOptions } from '@adonisjs/core/types/ace'
 import { VERSION as OPENAI_SDK_VERSION } from 'openai/version'
 import env from '#start/env'
 import ClassifyService from '#services/classify_service'
-import { type PromptCacheMode } from '#classifier/openai_classifier'
+import { APP_PROMPT_CACHE_MODE, type PromptCacheMode } from '#classifier/openai_classifier'
 import { MAX_IMAGE_BYTES } from '#controllers/classify_controller'
 import { CLASSIFY_PROMPT } from '#classifier/prompt'
 import { resolveReasoningEffort } from '#config/models'
@@ -26,6 +26,7 @@ import {
   type ConfigSnapshot,
   type EvalResults,
   cacheWarning,
+  describePromptCacheMode,
   formatEur,
   renderMarkdown,
   resultsBaseName,
@@ -39,9 +40,9 @@ const MAX_RUNS = 10
 const PROMPT_CACHE_MODES: readonly PromptCacheMode[] = ['explicit', 'default']
 
 function promptCacheModeText(mode: PromptCacheMode): string {
-  return mode === 'explicit'
-    ? 'explicit (no caching, same as the app)'
-    : 'default (OpenAI default caching, NOT the app setting; cache writes can add up to 25 % to input cost)'
+  return mode === APP_PROMPT_CACHE_MODE
+    ? `${describePromptCacheMode(mode)}, same as the app`
+    : `${describePromptCacheMode(mode)}, NOT the app setting`
 }
 
 function formatRange(r: Range | null): string {
@@ -77,8 +78,8 @@ export default class Eval extends BaseCommand {
 
   @flags.string({
     description:
-      'Prompt cache for this run: explicit (no caching, like the app) or default (OpenAI default caching)',
-    default: 'explicit',
+      'Prompt cache for this run: default (OpenAI default caching, like the app) or explicit (no caching)',
+    default: APP_PROMPT_CACHE_MODE as string,
   })
   declare cacheMode: string
 

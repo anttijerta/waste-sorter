@@ -81,9 +81,8 @@ describe('OpenAIClassifier', () => {
     const [body, options] = create.mock.calls[0] as [any, any]
     expect(body.model).toBe('gpt-6-luna')
     expect(body.store).toBe(false)
-    // No prompt caching: explicit mode and no breakpoint anywhere
-    expect(body.prompt_cache_options).toEqual({ mode: 'explicit' })
-    expect(JSON.stringify(body)).not.toContain('prompt_cache_breakpoint')
+    // The app uses OpenAI's default prompt caching: no cache options sent
+    expect(body).not.toHaveProperty('prompt_cache_options')
     expect(body.reasoning).toEqual({ effort: 'low' })
     expect(body.max_output_tokens).toBe(MAX_OUTPUT_TOKENS_PER_CALL)
 
@@ -101,7 +100,7 @@ describe('OpenAIClassifier', () => {
     expect(options).toEqual({ timeout: 12_345, maxRetries: 0 })
   })
 
-  it('turns prompt caching off unless the eval asks for the default mode', async () => {
+  it('turns prompt caching off only when the eval asks for explicit mode', async () => {
     const explicit = fakeClient(apiResponse(['{"category":"paper"}']))
     await new OpenAIClassifier('gpt-6.1-sol', {
       client: explicit.client,
@@ -109,9 +108,9 @@ describe('OpenAIClassifier', () => {
       timeoutMs: 1000,
       promptCacheMode: 'explicit',
     }).classify(IMAGE)
-    expect((explicit.create.mock.calls[0][0] as any).prompt_cache_options).toEqual({
-      mode: 'explicit',
-    })
+    const explicitBody = explicit.create.mock.calls[0][0] as any
+    expect(explicitBody.prompt_cache_options).toEqual({ mode: 'explicit' })
+    expect(JSON.stringify(explicitBody)).not.toContain('prompt_cache_breakpoint')
 
     const withDefault = fakeClient(apiResponse(['{"category":"paper"}']))
     await new OpenAIClassifier('gpt-6.1-sol', {

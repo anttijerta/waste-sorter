@@ -16,7 +16,7 @@ export type ClassifierSettings = {
   modelB: string | undefined
   reasoningEffort: string | undefined
   timeoutMs: number
-  /** Eval only; the app leaves this unset, which means explicit (no caching) */
+  /** Eval only; the app leaves this unset, which means APP_PROMPT_CACHE_MODE */
   promptCacheMode?: PromptCacheMode
   mockDelay: { minDelayMs: number; maxDelayMs: number }
   createClient: (apiKey: string, timeoutMs: number) => Pick<OpenAI, 'responses'>

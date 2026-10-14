@@ -45,6 +45,16 @@ describe('costMicroEur', () => {
     ).toBe(1000 + 100 + 1250)
   })
 
+  it('prices Luna cache writes at 1.25× its input rate', () => {
+    // 1114 written × $0.125/M + 3 uncached × $0.10/M + 14 output × $0.50/M
+    expect(
+      costMicroEur(
+        'gpt-6-luna',
+        usage({ inputTokens: 1117, cacheWriteTokens: 1114, outputTokens: 14 })
+      )
+    ).toBe(Math.ceil(139.25 + 0.3 + 7))
+  })
+
   it('rounds up to whole micro-euros and returns integers', () => {
     // One Luna input token costs 0.1 µ$
     expect(costMicroEur('gpt-6-luna', usage({ inputTokens: 1 }))).toBe(1)
@@ -57,11 +67,11 @@ describe('costMicroEur', () => {
 })
 
 describe('estimateCallCostMicroEur', () => {
-  it('reserves 2,000 input and 800 output tokens per call at the plain input rate', () => {
-    // Luna: 2000 × $0.10/M + 800 × $0.50/M = 200 + 400 µ$
-    expect(estimateCallCostMicroEur('gpt-6-luna')).toBe(600)
-    // Sol: 2000 × $2/M + 800 × $10/M = 4000 + 8000 µ$
-    expect(estimateCallCostMicroEur('gpt-6.1-sol')).toBe(12_000)
+  it('reserves 2,000 input tokens at the cache-write rate and 800 output tokens per call', () => {
+    // Luna: 2000 × $0.125/M + 800 × $0.50/M = 250 + 400 µ$
+    expect(estimateCallCostMicroEur('gpt-6-luna')).toBe(650)
+    // Sol: 2000 × $2.50/M + 800 × $10/M = 5000 + 8000 µ$
+    expect(estimateCallCostMicroEur('gpt-6.1-sol')).toBe(13_000)
   })
 
   it('throws for a model without a price, because the cap needs one', () => {
