@@ -19,7 +19,35 @@ export type ModelResult = {
  * never the image, the request or the API key.
  */
 export type ModelLogger = {
+  info(details: Record<string, unknown>, message: string): void
   warn(details: Record<string, unknown>, message: string): void
+}
+
+/**
+ * Token counts, cost and latency of every call, to keep the reservation
+ * estimate (config/pricing.ts) honest against real usage.
+ */
+function logUsage(
+  modelId: string,
+  usage: TokenUsage,
+  cost: number | null,
+  latencyMs: number,
+  log: ModelLogger
+) {
+  log.info(
+    {
+      modelId,
+      inputTokens: usage.inputTokens,
+      cachedInputTokens: usage.cachedInputTokens,
+      cacheWriteTokens: usage.cacheWriteTokens,
+      outputTokens: usage.outputTokens,
+      reasoningTokens: usage.reasoningTokens,
+      costMicroEur: cost,
+      estimateMicroEur: estimateCallCostMicroEur(modelId),
+      latencyMs,
+    },
+    'model call usage'
+  )
 }
 
 const FAILED_MESSAGE = 'Mallin kutsu epäonnistui'
@@ -56,13 +84,15 @@ export async function runModel(
   const started = performance.now()
   try {
     const output = await classifier.classify(image)
+    const latencyMs = Math.round(performance.now() - started)
     const cost = costMicroEur(classifier.modelId, output.usage)
+    logUsage(classifier.modelId, output.usage, cost, latencyMs, log)
     checkAgainstEstimate(classifier.modelId, output.usage, cost, log)
     return {
       modelId: classifier.modelId,
       category: output.category,
       label: categoryLabel(output.category),
-      latencyMs: Math.round(performance.now() - started),
+      latencyMs,
       costMicroEur: cost,
       error: null,
     }
@@ -77,13 +107,17 @@ export async function runModel(
       },
       'model call failed'
     )
+    const latencyMs = Math.round(performance.now() - started)
     const cost = usage ? costMicroEur(classifier.modelId, usage) : null
-    if (usage) checkAgainstEstimate(classifier.modelId, usage, cost, log)
+    if (usage) {
+      logUsage(classifier.modelId, usage, cost, latencyMs, log)
+      checkAgainstEstimate(classifier.modelId, usage, cost, log)
+    }
     return {
       modelId: classifier.modelId,
       category: 'unrecognized',
       label: categoryLabel('unrecognized'),
-      latencyMs: Math.round(performance.now() - started),
+      latencyMs,
       costMicroEur: cost,
       error: FAILED_MESSAGE,
     }
