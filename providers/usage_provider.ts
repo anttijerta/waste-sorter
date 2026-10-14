@@ -12,7 +12,8 @@ export default class UsageProvider {
       return new UsageService(db, {
         perIpPerMinute: env.get('RATE_LIMIT_PER_IP_PER_MINUTE', 5),
         perIpDaily: env.get('RATE_LIMIT_PER_IP_DAILY', 20),
-        monthlyCapEur: env.get('GLOBAL_MONTHLY_CAP_EUR', 5),
+        // Configured in euros, enforced in integer micro-euros.
+        monthlyCapMicroEur: Math.round(env.get('GLOBAL_MONTHLY_CAP_EUR', 5) * 1_000_000),
       })
     })
     this.app.container.singleton(ClassifyService, () => new ClassifyService())

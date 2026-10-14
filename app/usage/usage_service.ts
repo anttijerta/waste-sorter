@@ -24,7 +24,7 @@ export default class UsageService {
     private limits: UsageLimits
   ) {}
 
-  async reserve(ipHash: string, reserveEur: number, now = new Date()): Promise<Reservation> {
+  async reserve(ipHash: string, reserveMicroEur: number, now = new Date()): Promise<Reservation> {
     await this.#cleanupIfDue(now)
 
     const nowMs = now.getTime()
@@ -45,15 +45,15 @@ export default class UsageService {
           .where('day', day)
           .count('* as total')
           .first(),
-        trx.from('usage_events').where('month', month).sum('cost_eur as total').first(),
+        trx.from('usage_events').where('month', month).sum('cost_micro_eur as total').first(),
       ])
 
       const decision = checkLimits(
         {
           minuteCount: Number(minute?.total ?? 0),
           dayCount: Number(today?.total ?? 0),
-          monthCostEur: Number(spend?.total ?? 0),
-          reserveEur,
+          monthCostMicroEur: Number(spend?.total ?? 0),
+          reserveMicroEur,
         },
         this.limits
       )
@@ -61,10 +61,13 @@ export default class UsageService {
         return decision
       }
 
-      const [id] = await trx
-        .insertQuery()
-        .table('usage_events')
-        .insert({ ip_hash: ipHash, created_at_ms: nowMs, day, month, cost_eur: reserveEur })
+      const [id] = await trx.insertQuery().table('usage_events').insert({
+        ip_hash: ipHash,
+        created_at_ms: nowMs,
+        day,
+        month,
+        cost_micro_eur: reserveMicroEur,
+      })
       return { ok: true, id: Number(id) }
     })
   }
@@ -74,8 +77,8 @@ export default class UsageService {
    * zero for a failed call: the caller keeps the estimate for any model
    * whose usage is unknown, so failed calls still count.
    */
-  async settle(id: number, costEur: number): Promise<void> {
-    await this.db.from('usage_events').where('id', id).update({ cost_eur: costEur })
+  async settle(id: number, costMicroEur: number): Promise<void> {
+    await this.db.from('usage_events').where('id', id).update({ cost_micro_eur: costMicroEur })
   }
 
   /**

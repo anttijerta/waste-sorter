@@ -1,7 +1,8 @@
 export type UsageLimits = {
   perIpPerMinute: number
   perIpDaily: number
-  monthlyCapEur: number
+  /** Integer micro-euros */
+  monthlyCapMicroEur: number
 }
 
 export type CurrentUsage = {
@@ -9,10 +10,10 @@ export type CurrentUsage = {
   minuteCount: number
   /** Requests from this IP hash today (UTC) */
   dayCount: number
-  /** Estimated or settled spend of all users this month (UTC) */
-  monthCostEur: number
-  /** Budget the new request would reserve */
-  reserveEur: number
+  /** Estimated or settled spend of all users this month (UTC), micro-euros */
+  monthCostMicroEur: number
+  /** Budget the new request would reserve, micro-euros */
+  reserveMicroEur: number
 }
 
 export type LimitReason = 'per_minute' | 'daily' | 'monthly_cap'
@@ -25,7 +26,7 @@ export type LimitDecision = { ok: true } | { ok: false; reason: LimitReason }
  * more useful message for every user.
  */
 export function checkLimits(usage: CurrentUsage, limits: UsageLimits): LimitDecision {
-  if (usage.monthCostEur + usage.reserveEur > limits.monthlyCapEur) {
+  if (usage.monthCostMicroEur + usage.reserveMicroEur > limits.monthlyCapMicroEur) {
     return { ok: false, reason: 'monthly_cap' }
   }
   if (usage.dayCount >= limits.perIpDaily) {

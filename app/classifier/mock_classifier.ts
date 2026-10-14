@@ -30,7 +30,10 @@ export class MockClassifier implements Classifier {
       category,
       usage: {
         inputTokens: 800 + (own[2] % 400),
+        cachedInputTokens: 0,
+        cacheWriteTokens: 0,
         outputTokens: 5 + (own[3] % 10),
+        reasoningTokens: 0,
       },
     }
   }

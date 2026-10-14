@@ -2,12 +2,14 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { Logger } from '@adonisjs/core/logger'
 import { Database } from '@adonisjs/lucid/database'
 import CreateUsageEvents from '../../database/migrations/1791977231343_create_usage_events_table.js'
+import ConvertUsageCostToMicroEur from '../../database/migrations/1791980518147_convert_usage_cost_to_micro_eur.js'
 import UsageService from '#usage/usage_service'
 
-const ESTIMATE = 0.003125
+// Integer micro-euros
+const ESTIMATE = 3125
 
 /**
- * A real, in-memory SQLite database with the real migration applied. The
+ * A real, in-memory SQLite database with the real migrations applied. The
  * SQLite pool holds one connection, as in production.
  */
 async function createDatabase(): Promise<Database> {
@@ -25,7 +27,9 @@ async function createDatabase(): Promise<Database> {
     new Logger({ enabled: false }),
     { emit() {}, hasListeners: () => false } as any
   )
-  await new CreateUsageEvents(db.connection(), 'create_usage_events_table').execUp()
+  for (const Migration of [CreateUsageEvents, ConvertUsageCostToMicroEur]) {
+    await new Migration(db.connection(), Migration.name).execUp()
+  }
   return db
 }
 
@@ -45,7 +49,7 @@ describe('UsageService', () => {
     const usage = new UsageService(db, {
       perIpPerMinute: 100,
       perIpDaily: 100,
-      monthlyCapEur: ESTIMATE * 3.5,
+      monthlyCapMicroEur: ESTIMATE * 3 + 1000,
     })
 
     // Started in the same tick: without one transaction around the check
@@ -61,7 +65,11 @@ describe('UsageService', () => {
   })
 
   it('applies the per-minute and daily limits to one IP hash only', async () => {
-    const usage = new UsageService(db, { perIpPerMinute: 2, perIpDaily: 3, monthlyCapEur: 100 })
+    const usage = new UsageService(db, {
+      perIpPerMinute: 2,
+      perIpDaily: 3,
+      monthlyCapMicroEur: 100_000_000,
+    })
     const now = new Date('2026-10-14T12:00:00Z')
     const later = new Date('2026-10-14T12:01:30Z')
 
@@ -79,19 +87,23 @@ describe('UsageService', () => {
     const usage = new UsageService(db, {
       perIpPerMinute: 100,
       perIpDaily: 100,
-      monthlyCapEur: ESTIMATE * 1.5,
+      monthlyCapMicroEur: Math.floor(ESTIMATE * 1.5),
     })
 
     const first = await usage.reserve('a', ESTIMATE)
     expect(first.ok).toBe(true)
     expect(await usage.reserve('b', ESTIMATE)).toEqual({ ok: false, reason: 'monthly_cap' })
 
-    await usage.settle((first as { id: number }).id, ESTIMATE / 4)
+    await usage.settle((first as { id: number }).id, Math.floor(ESTIMATE / 4))
     expect(await usage.reserve('b', ESTIMATE)).toMatchObject({ ok: true })
   })
 
   it('deletes rows older than 35 days', async () => {
-    const usage = new UsageService(db, { perIpPerMinute: 100, perIpDaily: 100, monthlyCapEur: 100 })
+    const usage = new UsageService(db, {
+      perIpPerMinute: 100,
+      perIpDaily: 100,
+      monthlyCapMicroEur: 100_000_000,
+    })
     const old = new Date('2026-08-01T12:00:00Z')
     const now = new Date('2026-10-14T12:00:00Z')
 

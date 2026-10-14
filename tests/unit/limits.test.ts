@@ -1,8 +1,14 @@
 import { describe, expect, it } from 'vitest'
 import { type CurrentUsage, type UsageLimits, checkLimits } from '#usage/limits'
 
-const limits: UsageLimits = { perIpPerMinute: 5, perIpDaily: 20, monthlyCapEur: 5 }
-const fresh: CurrentUsage = { minuteCount: 0, dayCount: 0, monthCostEur: 0, reserveEur: 0.01 }
+// Amounts in integer micro-euros: 5 € = 5_000_000
+const limits: UsageLimits = { perIpPerMinute: 5, perIpDaily: 20, monthlyCapMicroEur: 5_000_000 }
+const fresh: CurrentUsage = {
+  minuteCount: 0,
+  dayCount: 0,
+  monthCostMicroEur: 0,
+  reserveMicroEur: 10_000,
+}
 
 describe('checkLimits', () => {
   it('allows a request under every limit', () => {
@@ -23,17 +29,22 @@ describe('checkLimits', () => {
   })
 
   it('counts the reservation against the monthly cap', () => {
-    expect(checkLimits({ ...fresh, monthCostEur: 4.99 }, limits)).toEqual({ ok: true })
-    expect(checkLimits({ ...fresh, monthCostEur: 4.995 }, limits)).toEqual({
+    expect(checkLimits({ ...fresh, monthCostMicroEur: 4_990_000 }, limits)).toEqual({ ok: true })
+    expect(checkLimits({ ...fresh, monthCostMicroEur: 4_990_001 }, limits)).toEqual({
       ok: false,
       reason: 'monthly_cap',
     })
   })
 
   it('reports the monthly cap first, then the daily limit, then the per-minute limit', () => {
-    const everythingHit = { minuteCount: 5, dayCount: 20, monthCostEur: 5, reserveEur: 0.01 }
+    const everythingHit = {
+      minuteCount: 5,
+      dayCount: 20,
+      monthCostMicroEur: 5_000_000,
+      reserveMicroEur: 10_000,
+    }
     expect(checkLimits(everythingHit, limits)).toEqual({ ok: false, reason: 'monthly_cap' })
-    expect(checkLimits({ ...everythingHit, monthCostEur: 0 }, limits)).toEqual({
+    expect(checkLimits({ ...everythingHit, monthCostMicroEur: 0 }, limits)).toEqual({
       ok: false,
       reason: 'daily',
     })

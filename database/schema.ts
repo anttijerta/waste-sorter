@@ -7,10 +7,10 @@
 import { BaseModel, column } from '@adonisjs/lucid/orm'
 
 export class UsageEventSchema extends BaseModel {
-  static $columns = ['costEur', 'createdAtMs', 'day', 'id', 'ipHash', 'month'] as const
+  static $columns = ['costMicroEur', 'createdAtMs', 'day', 'id', 'ipHash', 'month'] as const
   $columns = UsageEventSchema.$columns
   @column()
-  declare costEur: number
+  declare costMicroEur: bigint | number
   @column()
   declare createdAtMs: bigint | number
   @column()
