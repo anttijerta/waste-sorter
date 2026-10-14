@@ -28,4 +28,7 @@ export default await Env.create(new URL('../', import.meta.url), {
   // Models
   MODEL_A: Env.schema.string.optional(),
   MODEL_B: Env.schema.string.optional(),
+
+  // Database
+  DB_PATH: Env.schema.string.optional(),
 })

@@ -1,5 +1,15 @@
+import { mkdirSync } from 'node:fs'
+import { dirname, resolve } from 'node:path'
+import env from '#start/env'
 import app from '@adonisjs/core/services/app'
 import { defineConfig } from '@adonisjs/lucid'
+
+/**
+ * The database lives in its own directory, never next to temporary files.
+ * Relative paths resolve from the app root.
+ */
+const dbPath = resolve(app.appRoot.pathname, env.get('DB_PATH', '/app/data/db.sqlite3'))
+mkdirSync(dirname(dbPath), { recursive: true })
 
 const dbConfig = defineConfig({
   /**
@@ -18,7 +28,7 @@ const dbConfig = defineConfig({
         /**
          * Database file location.
          */
-        filename: app.tmpPath('db.sqlite3'),
+        filename: dbPath,
       },
 
       /**
