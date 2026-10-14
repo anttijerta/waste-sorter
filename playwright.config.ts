@@ -17,9 +17,9 @@ const servers = {
     env: { RATE_LIMIT_PER_IP_DAILY: '2', TRUSTED_PROXIES: '192.0.2.1' },
   },
   'global-cap': {
-    // Mock estimate is 17,500 micro-euros per image: 3 reservations fit, a 4th does not.
+    // Mock estimate is 7,500 micro-euros per image: 3 reservations fit, a 4th does not.
     port: 3337,
-    env: { GLOBAL_MONTHLY_CAP_EUR: '0.06' },
+    env: { GLOBAL_MONTHLY_CAP_EUR: '0.025' },
   },
 } as const
 

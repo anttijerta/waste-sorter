@@ -57,9 +57,11 @@ describe('costMicroEur', () => {
 })
 
 describe('estimateCallCostMicroEur', () => {
-  it('reserves 4,000 input and 2,000 output tokens per call', () => {
-    expect(estimateCallCostMicroEur('gpt-6-luna')).toBe(1_400)
-    expect(estimateCallCostMicroEur('gpt-6.1-sol')).toBe(28_000)
+  it('reserves 2,000 input and 800 output tokens per call at the plain input rate', () => {
+    // Luna: 2000 × $0.10/M + 800 × $0.50/M = 200 + 400 µ$
+    expect(estimateCallCostMicroEur('gpt-6-luna')).toBe(600)
+    // Sol: 2000 × $2/M + 800 × $10/M = 4000 + 8000 µ$
+    expect(estimateCallCostMicroEur('gpt-6.1-sol')).toBe(12_000)
   })
 
   it('throws for a model without a price, because the cap needs one', () => {

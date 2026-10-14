@@ -39,20 +39,21 @@ export const USD_TO_EUR = 1
 
 /**
  * Upper bound of token usage for one call, used to reserve budget before
- * the call when the real usage is not known yet.
+ * the call when the real usage is not known yet. Priced at the plain input
+ * rate: prompt caching is disabled, so there are no cache writes.
  *
  * - Output: exactly max_output_tokens, which the API enforces and which
  *   includes reasoning tokens.
- * - Input: the server rejects images over 1024 px, so an image is at most
- *   32 × 32 = 1,024 patches. OpenAI does not publish the patch multiplier
- *   for these models; assuming at most 3 gives 3,072 tokens. The prompt
- *   and schema add a few hundred. Rounded up to 4,000.
+ * - Input: a measured call used 1,117 tokens for a 768×1024 image
+ *   (768 patches), about 1.2 tokens per patch with the prompt and schema
+ *   included. The server rejects images over 1024 px, so an image is at
+ *   most 1,024 patches, about 1,450 tokens. 2,000 leaves ~38 % headroom.
  *
  * If a call ever uses more, the real cost is still recorded and a warning
- * is logged, so this can be tightened from real usage.
+ * is logged.
  */
 export const ESTIMATED_USAGE_PER_CALL: TokenUsage = {
-  inputTokens: 4000,
+  inputTokens: 2000,
   cachedInputTokens: 0,
   cacheWriteTokens: 0,
   outputTokens: MAX_OUTPUT_TOKENS_PER_CALL,

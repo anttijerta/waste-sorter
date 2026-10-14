@@ -1,10 +1,10 @@
 import { expect, test } from '@playwright/test'
 import { drawTestJpeg, fakeJpeg, postImage, uploadInBrowser } from './helpers.js'
 
-// The server for this project has a monthly cap of 0.06 EUR. Each request
-// reserves an estimated 17,500 micro-euros with the mock prices, so at most
+// The server for this project has a monthly cap of 0.025 EUR. Each request
+// reserves an estimated 7,500 micro-euros with the mock prices, so at most
 // 3 reservations fit at once.
-const CAP_MICRO_EUR = 60_000
+const CAP_MICRO_EUR = 25_000
 
 type ResponseBody = { code?: string; models: { costMicroEur: number }[] }
 

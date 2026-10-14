@@ -20,8 +20,12 @@ export const DEFAULT_REASONING_EFFORT: ReasoningEffort = 'low'
  * Sent as max_output_tokens, which caps reasoning and visible output
  * together. The API enforces it, so it is also the output bound used when
  * reserving budget (see config/pricing.ts).
+ *
+ * Eval runs at effort "low" used at most 195 output tokens; 800 leaves
+ * about 4× headroom for longer reasoning on hard images. A call that hits
+ * the cap is billed but returns no answer.
  */
-export const MAX_OUTPUT_TOKENS_PER_CALL = 2000
+export const MAX_OUTPUT_TOKENS_PER_CALL = 800
 
 /**
  * "high" caps an image at 2,500 patches. The server only accepts images up

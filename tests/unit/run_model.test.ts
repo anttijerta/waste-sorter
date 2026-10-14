@@ -45,7 +45,7 @@ describe('runModel', () => {
         outputTokens: 300,
         reasoningTokens: 0,
         costMicroEur: 6000,
-        estimateMicroEur: 28_000,
+        estimateMicroEur: 12_000,
         latencyMs: expect.any(Number),
       },
       'model call usage'
