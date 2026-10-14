@@ -84,7 +84,10 @@ truth. Source: HSY sorting guide (Helsinki region).
   change when containers are recreated. Never publish the app port
   directly, or clients reach it through Docker NAT.
 - `EVAL_DATA_DIR`: path to test images and `labels.csv`, outside this repo.
-  Never copy eval images into the repo.
+  Never copy eval images into the repo. Layout: `labels.csv`
+  (`file,expected,difficulty,note`), photos in `images-jpg/`, results
+  written to `results/`. `node ace eval` makes paid calls and requires
+  `--yes`; never run it in CI.
 
 ## Build order (do not skip ahead)
 
