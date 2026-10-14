@@ -14,7 +14,7 @@ import { resolveReasoningEffort } from '#config/models'
 import { PRICES_CHECKED_AT } from '#config/pricing'
 import { EvalClassifier, MAX_CALLS_PER_MINUTE, type Clock } from '#eval/eval_classifier'
 import { type Label, LabelsError, parseLabels } from '#eval/labels'
-import { type EvalRow, type ModelAnswer, summarize } from '#eval/metrics'
+import { type EvalRow, type ModelAnswer, type Range, summarize, summarizeRuns } from '#eval/metrics'
 import {
   EVAL_JPEG_QUALITY,
   EVAL_MAX_SIDE_PX,
@@ -24,6 +24,7 @@ import {
 import {
   type ConfigSnapshot,
   type EvalResults,
+  cacheWarning,
   formatEur,
   renderMarkdown,
   resultsBaseName,
@@ -31,6 +32,14 @@ import {
 } from '#eval/report'
 
 const realClock: Clock = { now: () => Date.now(), sleep: (ms) => sleep(ms) }
+
+const MAX_RUNS = 10
+
+function formatRange(r: Range | null): string {
+  if (!r) return '–'
+  const p = (v: number) => `${(v * 100).toFixed(1)} %`
+  return `mean ${p(r.mean)} (min ${p(r.min)}, max ${p(r.max)})`
+}
 
 export default class Eval extends BaseCommand {
   static commandName = 'eval'
@@ -54,7 +63,17 @@ export default class Eval extends BaseCommand {
   })
   declare images: string
 
+  @flags.number({ description: 'Run the whole set this many times (default 1)', default: 1 })
+  declare runs: number
+
   async run() {
+    const runs = this.runs
+    if (!Number.isInteger(runs) || runs < 1 || runs > MAX_RUNS) {
+      this.logger.error(`--runs must be a whole number from 1 to ${MAX_RUNS}`)
+      this.exitCode = 1
+      return
+    }
+
     const dataDir = this.dataDir || env.get('EVAL_DATA_DIR')
     if (!dataDir) {
       this.logger.error('Set EVAL_DATA_DIR or pass --data-dir')
@@ -97,6 +116,7 @@ export default class Eval extends BaseCommand {
       date: new Date().toISOString(),
       classifiers: setup.mode,
       mode: this.sequential ? 'sequential' : 'parallel',
+      runs,
       models: wrapped.map((classifier) => ({
         id: classifier.modelId,
         reasoningEffort: classifier.simulated
@@ -109,15 +129,15 @@ export default class Eval extends BaseCommand {
       image: { maxSidePx: EVAL_MAX_SIDE_PX, jpegQuality: EVAL_JPEG_QUALITY, metadata: 'stripped' },
       maxCallsPerMinutePerModel: MAX_CALLS_PER_MINUTE,
       images: labels.length,
-      calls: labels.length * wrapped.length,
-      worstCaseMicroEur: labels.length * service.reserveMicroEur,
+      calls: runs * labels.length * wrapped.length,
+      worstCaseMicroEur: runs * labels.length * service.reserveMicroEur,
     }
 
     this.logger.info(
       [
         `Classifiers: ${config.classifiers === 'openai' ? 'OpenAI (real, paid calls)' : 'MOCK (simulated)'}`,
         `Models: ${config.models.map((m) => `${m.id} (effort ${m.reasoningEffort ?? 'n/a'})`).join(', ')}`,
-        `Mode: ${config.mode}`,
+        `Mode: ${config.mode}, runs: ${runs}`,
         `Images: ${config.images} from ${imagesDir}`,
         `Calls: ${config.calls}, at most ${MAX_CALLS_PER_MINUTE} per minute per model`,
         `Worst-case cost (reservation estimate): ${formatEur(config.worstCaseMicroEur)}`,
@@ -134,59 +154,79 @@ export default class Eval extends BaseCommand {
       )
     }
 
-    const rows: EvalRow[] = []
+    const allRuns: EvalRow[][] = []
     const rateLimitRetries: EvalResults['rateLimitRetries'] = []
 
-    for (const label of labels) {
-      const original = await readFile(join(imagesDir, label.file))
-      const image = await prepareImage(sharp, original, { maxBytes: MAX_IMAGE_BYTES })
-      const retriesBefore = wrapped.map((classifier) => classifier.retries.length)
+    for (let run = 1; run <= runs; run++) {
+      if (runs > 1) this.logger.info(`Run ${run}/${runs}`)
+      const rows: EvalRow[] = []
 
-      const result = await service.classify(image, { sequential: this.sequential })
+      for (const label of labels) {
+        const original = await readFile(join(imagesDir, label.file))
+        const image = await prepareImage(sharp, original, { maxBytes: MAX_IMAGE_BYTES })
+        const retriesBefore = wrapped.map((classifier) => classifier.retries.length)
 
-      const models = result.models.map((model, index): ModelAnswer => {
-        const classifier = wrapped[index]
-        const newRetries = classifier.retries.slice(retriesBefore[index])
-        rateLimitRetries.push(...newRetries.map((retry) => ({ ...retry, file: label.file })))
-        return {
-          modelId: model.modelId,
-          answer: model.category,
-          correct: model.error === null && model.category === label.expected,
-          costMicroEur: model.costMicroEur,
-          // The throttle wait happens before the timer starts; only a
-          // rate-limit retry wait is inside the timed call.
-          latencyMs: Math.max(0, model.latencyMs - classifier.takeRetryWaitMs()),
-          usage: classifier.takeLastUsage(),
-          error: model.error,
-          rateLimitRetries: newRetries.length,
+        const result = await service.classify(image, { sequential: this.sequential })
+
+        const models = result.models.map((model, index): ModelAnswer => {
+          const classifier = wrapped[index]
+          const newRetries = classifier.retries.slice(retriesBefore[index])
+          rateLimitRetries.push(...newRetries.map((retry) => ({ ...retry, file: label.file, run })))
+          return {
+            modelId: model.modelId,
+            answer: model.category,
+            correct: model.error === null && model.category === label.expected,
+            costMicroEur: model.costMicroEur,
+            // The throttle wait happens before the timer starts; only a
+            // rate-limit retry wait is inside the timed call.
+            latencyMs: Math.max(0, model.latencyMs - classifier.takeRetryWaitMs()),
+            error: model.error,
+            rateLimitRetries: newRetries.length,
+            usage: classifier.takeLastUsage(),
+          }
+        }) as [ModelAnswer, ModelAnswer]
+
+        const row: EvalRow = {
+          file: label.file,
+          expected: label.expected,
+          difficulty: label.difficulty,
+          note: label.note,
+          models,
+          agreed: result.agreement.agreed,
         }
-      }) as [ModelAnswer, ModelAnswer]
-
-      const row: EvalRow = {
-        file: label.file,
-        expected: label.expected,
-        difficulty: label.difficulty,
-        note: label.note,
-        models,
-        agreed: result.agreement.agreed,
+        rows.push(row)
+        this.logger.log(formatRow(row))
       }
-      rows.push(row)
-      this.logger.log(formatRow(row))
+      allRuns.push(rows)
     }
 
-    const results: EvalResults = { config, summary: summarize(rows), rows, rateLimitRetries }
+    const results: EvalResults = {
+      config,
+      summary: summarizeRuns(allRuns),
+      perRun: allRuns.map(summarize),
+      runs: allRuns,
+      rateLimitRetries,
+    }
     const resultsDir = join(dataDir, 'results')
     await mkdir(resultsDir, { recursive: true })
     const base = join(resultsDir, resultsBaseName(config))
     await writeFile(`${base}.json`, JSON.stringify(results, null, 2) + '\n')
     await writeFile(`${base}.md`, renderMarkdown(results))
 
-    for (const model of results.summary.models) {
-      const overall = model.accuracy.overall
+    for (const [index, model] of results.summary.models.entries()) {
+      const accuracy =
+        runs === 1
+          ? `${results.perRun[0].models[index].accuracy.overall.correct}/${results.perRun[0].models[index].accuracy.overall.total}`
+          : formatRange(model.accuracy.overall)
       this.logger.info(
-        `${model.modelId}: accuracy ${overall.correct}/${overall.total}, cost ${formatEur(model.totalCostMicroEur)}, median ${model.latencyMs.median} ms`
+        `${model.modelId}: accuracy ${accuracy}, cost ${formatEur(model.totalCostMicroEur)}, median ${model.latencyMs.median} ms` +
+          (runs > 1
+            ? `, same answer in every run for ${model.consistentImages}/${labels.length} images`
+            : '')
       )
     }
+    const warning = cacheWarning(results.summary)
+    if (warning) this.logger.warning(warning)
     if (rateLimitRetries.length > 0) {
       this.logger.warning(`Rate-limit retries: ${rateLimitRetries.length} (see the report)`)
     }
