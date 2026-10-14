@@ -3,6 +3,7 @@ import { readdir, readFile, stat } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { expect, test } from '@playwright/test'
+import { postImage } from './helpers.js'
 
 /**
  * Returns the files in `dir` modified at or after `since` whose contents
@@ -30,14 +31,7 @@ test('an uploaded image is never written to the tmp directory', async ({ request
   const image = Buffer.concat([Buffer.from([0xff, 0xd8, 0xff, 0xe0]), marker, Buffer.alloc(4096)])
   const since = Date.now() - 1000
 
-  await request.get('/')
-  const { cookies } = await request.storageState()
-  const token = cookies.find((cookie) => cookie.name === 'XSRF-TOKEN')!.value
-
-  const response = await request.post('/api/classify', {
-    headers: { 'Accept': 'application/json', 'X-XSRF-TOKEN': token },
-    multipart: { image: { name: 'image.jpg', mimeType: 'image/jpeg', buffer: image } },
-  })
+  const response = await postImage(request, image)
   expect(await filesContaining(tmpdir(), marker, since)).toEqual([])
   expect(response.status()).toBe(200)
 })
