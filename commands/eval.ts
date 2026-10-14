@@ -25,6 +25,7 @@ import {
 import {
   type ConfigSnapshot,
   type EvalResults,
+  DEFAULT_LABELS_FILE,
   cacheWarning,
   describePromptCacheMode,
   formatEur,
@@ -73,6 +74,12 @@ export default class Eval extends BaseCommand {
   })
   declare images: string
 
+  @flags.string({
+    description: 'Labels file, relative to the data directory',
+    default: DEFAULT_LABELS_FILE,
+  })
+  declare labels: string
+
   @flags.number({ description: 'Run the whole set this many times (default 1)', default: 1 })
   declare runs: number
 
@@ -105,6 +112,7 @@ export default class Eval extends BaseCommand {
       return
     }
     const imagesDir = resolve(dataDir, this.images)
+    const labelsPath = resolve(dataDir, this.labels)
 
     // Dev-only packages, loaded here so the production image does not need them.
     // sharp (CommonJS) goes through require(): importing it as ESM trips a
@@ -115,14 +123,17 @@ export default class Eval extends BaseCommand {
 
     let labels: Label[]
     try {
-      const text = await readFile(join(dataDir, 'labels.csv'), 'utf8')
+      if (!existsSync(labelsPath)) {
+        throw new LabelsError([`labels file not found: ${labelsPath}`])
+      }
+      const text = await readFile(labelsPath, 'utf8')
       labels = parseLabels(text, parse, (file) => {
         // Plain file names only, so a label cannot point outside the images folder.
         return basename(file) === file && existsSync(join(imagesDir, file))
       })
     } catch (error) {
       if (error instanceof LabelsError) {
-        this.logger.error(error.message)
+        this.logger.error(`Labels file ${labelsPath} has ${error.message}`)
         this.exitCode = 1
         return
       }
@@ -142,6 +153,7 @@ export default class Eval extends BaseCommand {
       mode: this.sequential ? 'sequential' : 'parallel',
       runs,
       promptCacheMode,
+      labelsFile: this.labels,
       models: wrapped.map((classifier) => ({
         id: classifier.modelId,
         reasoningEffort: classifier.simulated
@@ -164,6 +176,7 @@ export default class Eval extends BaseCommand {
         `Models: ${config.models.map((m) => `${m.id} (effort ${m.reasoningEffort ?? 'n/a'})`).join(', ')}`,
         `Mode: ${config.mode}, runs: ${runs}`,
         `Prompt cache: ${promptCacheModeText(promptCacheMode)}`,
+        `Labels: ${labelsPath}`,
         `Images: ${config.images} from ${imagesDir}`,
         `Calls: ${config.calls}, at most ${MAX_CALLS_PER_MINUTE} per minute per model`,
         `Worst-case cost (reservation estimate): ${formatEur(config.worstCaseMicroEur)}`,

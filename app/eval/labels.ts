@@ -5,7 +5,7 @@ export const DIFFICULTIES = ['easy', 'hard', 'oos'] as const
 export type Difficulty = (typeof DIFFICULTIES)[number]
 
 export type Label = {
-  /** 1-based line in labels.csv, for error messages */
+  /** 1-based line in the labels file, for error messages */
   line: number
   file: string
   expected: CategoryId
@@ -23,9 +23,7 @@ const REQUIRED_COLUMNS = ['file', 'expected', 'difficulty'] as const
 
 export class LabelsError extends Error {
   constructor(readonly problems: string[]) {
-    super(
-      `labels.csv has ${problems.length} problem(s):\n${problems.map((p) => `- ${p}`).join('\n')}`
-    )
+    super(`${problems.length} problem(s):\n${problems.map((p) => `- ${p}`).join('\n')}`)
     this.name = 'LabelsError'
   }
 }

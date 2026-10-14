@@ -39,6 +39,7 @@ function config(runs: number): ConfigSnapshot {
     mode: 'parallel',
     runs,
     promptCacheMode: 'default',
+    labelsFile: 'labels.csv',
     models: [
       { id: 'gpt-6-luna', reasoningEffort: 'low' },
       { id: 'gpt-6.1-sol', reasoningEffort: 'low' },
@@ -102,6 +103,19 @@ describe('eval report', () => {
         promptCacheMode: 'explicit',
       })
     ).toBe('2026-10-14T16-05-03Z-sequential-3runs-cache-explicit-mock')
+  })
+
+  it('shows the labels file in the snapshot and tags other files in the file name', () => {
+    expect(renderMarkdown(results([[evalRow(0)]]))).toContain('- Labels: labels.csv')
+
+    const hard = { ...config(1), labelsFile: 'labels-hard.csv' }
+    expect(renderMarkdown({ ...results([[evalRow(0)]]), config: hard })).toContain(
+      '- Labels: labels-hard.csv'
+    )
+    expect(resultsBaseName(hard)).toBe('2026-10-14T16-05-03Z-labels-hard')
+    expect(resultsBaseName({ ...config(1), labelsFile: 'sets/baking paper.csv' })).toBe(
+      '2026-10-14T16-05-03Z-baking_paper'
+    )
   })
 
   it('shows the prompt cache mode in the configuration snapshot', () => {

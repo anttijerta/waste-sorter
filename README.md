@@ -108,6 +108,7 @@ node ace eval                # dry run: prints the number of calls and the worst
 node ace eval --yes          # runs both models in parallel per image, like the app
 node ace eval --yes --sequential   # one model after the other, to compare latency
 node ace eval --yes --runs=3       # repeat the set, report consistency and accuracy ranges
+node ace eval --yes --labels=labels-hard.csv   # another labels file in the data folder
 node ace eval --yes --cache-mode=explicit  # compare with prompt caching off (the app uses OpenAI's default caching)
 ```
 

@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto'
+import { basename } from 'node:path'
 import { type ReasoningEffort } from '#config/models'
 import { type CategoryId, categoryLabel } from '#config/categories'
 import {
@@ -20,6 +21,8 @@ export type ConfigSnapshot = {
   runs: number
   /** default = OpenAI default caching (the app setting); explicit = no caching */
   promptCacheMode: PromptCacheMode
+  /** Labels file as given, relative to the data directory */
+  labelsFile: string
   models: { id: string; reasoningEffort: ReasoningEffort | null }[]
   promptSha256: string
   pricesCheckedAt: string
@@ -37,6 +40,15 @@ export type EvalResults = {
   perRun: EvalSummary[]
   runs: EvalRow[][]
   rateLimitRetries: (RateLimitRetry & { file: string; run: number })[]
+}
+
+export const DEFAULT_LABELS_FILE = 'labels.csv'
+
+/** File-name-safe short form of a labels file, e.g. "labels-hard.csv" -> "labels-hard" */
+function labelsTag(labelsFile: string): string {
+  return basename(labelsFile)
+    .replace(/\.csv$/i, '')
+    .replace(/[^A-Za-z0-9_-]+/g, '_')
 }
 
 export function describePromptCacheMode(mode: PromptCacheMode): string {
@@ -59,6 +71,7 @@ export function resultsBaseName(config: ConfigSnapshot): string {
   return [
     timestampForFile(new Date(config.date)),
     config.mode === 'sequential' ? 'sequential' : null,
+    config.labelsFile === DEFAULT_LABELS_FILE ? null : labelsTag(config.labelsFile),
     config.runs > 1 ? `${config.runs}runs` : null,
     config.promptCacheMode === APP_PROMPT_CACHE_MODE ? null : `cache-${config.promptCacheMode}`,
     config.classifiers === 'mock' ? 'mock' : null,
@@ -144,6 +157,7 @@ export function renderMarkdown(results: EvalResults): string {
     '## Configuration',
     '',
     `- Models: ${config.models.map((m) => `\`${m.id}\` (effort ${m.reasoningEffort ?? 'n/a'})`).join(', ')}`,
+    `- Labels: ${config.labelsFile}`,
     `- Mode: ${config.mode}, runs: ${config.runs}`,
     `- Prompt cache: ${describePromptCacheMode(config.promptCacheMode)}${config.promptCacheMode === APP_PROMPT_CACHE_MODE ? ', same as the app' : ', not the app setting'}`,
     `- Prompt SHA-256: \`${config.promptSha256}\``,
