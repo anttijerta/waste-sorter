@@ -101,6 +101,30 @@ describe('OpenAIClassifier', () => {
     expect(options).toEqual({ timeout: 12_345, maxRetries: 0 })
   })
 
+  it('turns prompt caching off unless the eval asks for the default mode', async () => {
+    const explicit = fakeClient(apiResponse(['{"category":"paper"}']))
+    await new OpenAIClassifier('gpt-6.1-sol', {
+      client: explicit.client,
+      reasoningEffort: 'low',
+      timeoutMs: 1000,
+      promptCacheMode: 'explicit',
+    }).classify(IMAGE)
+    expect((explicit.create.mock.calls[0][0] as any).prompt_cache_options).toEqual({
+      mode: 'explicit',
+    })
+
+    const withDefault = fakeClient(apiResponse(['{"category":"paper"}']))
+    await new OpenAIClassifier('gpt-6.1-sol', {
+      client: withDefault.client,
+      reasoningEffort: 'low',
+      timeoutMs: 1000,
+      promptCacheMode: 'default',
+    }).classify(IMAGE)
+    const body = withDefault.create.mock.calls[0][0] as any
+    expect(body).not.toHaveProperty('prompt_cache_options')
+    expect(body.store).toBe(false)
+  })
+
   it('throws with the usage when the response is incomplete, so the cost still counts', async () => {
     const { client } = fakeClient(
       apiResponse([], {

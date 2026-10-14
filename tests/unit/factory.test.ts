@@ -49,6 +49,35 @@ describe('createClassifiers', () => {
     expect(createClient).toHaveBeenCalledExactlyOnceWith('not-a-real-key', 15_000)
   })
 
+  it('uses explicit prompt caching (none) unless the eval overrides it', async () => {
+    const create = vi.fn(async () => ({
+      status: 'completed',
+      output: [],
+      usage: {
+        input_tokens: 1,
+        input_tokens_details: { cached_tokens: 0, cache_write_tokens: 0 },
+        output_tokens: 1,
+        output_tokens_details: { reasoning_tokens: 0 },
+      },
+    }))
+    const createClient = () => ({ responses: { create } }) as any
+
+    for (const [promptCacheMode, expected] of [
+      [undefined, { mode: 'explicit' }],
+      ['explicit', { mode: 'explicit' }],
+      ['default', undefined],
+    ] as const) {
+      create.mockClear()
+      const setup = createClassifiers({
+        ...settings({ apiKey: 'not-a-real-key', promptCacheMode }).value,
+        createClient,
+      })
+      await setup.classifiers[1].classify(Buffer.from([0xff, 0xd8]))
+      const body = (create.mock.calls[0] as any[])[0]
+      expect(body.prompt_cache_options).toEqual(expected)
+    }
+  })
+
   it('fails at startup when a model does not support the configured effort, in either mode', () => {
     expect(() => createClassifiers(settings({ reasoningEffort: 'none' }).value)).toThrow(
       /gpt-6.1-sol.*does not support/

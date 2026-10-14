@@ -11,12 +11,15 @@ import {
   cacheAffectedCost,
 } from '#eval/metrics'
 import { type RateLimitRetry } from '#eval/eval_classifier'
+import { type PromptCacheMode } from '#classifier/openai_classifier'
 
 export type ConfigSnapshot = {
   date: string
   classifiers: 'openai' | 'mock'
   mode: 'parallel' | 'sequential'
   runs: number
+  /** explicit = no prompt caching (the app setting); default = OpenAI default caching */
+  promptCacheMode: PromptCacheMode
   models: { id: string; reasoningEffort: ReasoningEffort | null }[]
   promptSha256: string
   pricesCheckedAt: string
@@ -53,6 +56,7 @@ export function resultsBaseName(config: ConfigSnapshot): string {
     timestampForFile(new Date(config.date)),
     config.mode === 'sequential' ? 'sequential' : null,
     config.runs > 1 ? `${config.runs}runs` : null,
+    config.promptCacheMode === 'default' ? 'cache-default' : null,
     config.classifiers === 'mock' ? 'mock' : null,
   ]
     .filter(Boolean)
@@ -137,6 +141,7 @@ export function renderMarkdown(results: EvalResults): string {
     '',
     `- Models: ${config.models.map((m) => `\`${m.id}\` (effort ${m.reasoningEffort ?? 'n/a'})`).join(', ')}`,
     `- Mode: ${config.mode}, runs: ${config.runs}`,
+    `- Prompt cache: ${config.promptCacheMode === 'explicit' ? 'explicit (no caching, same as the app)' : 'default (OpenAI default caching, not the app setting)'}`,
     `- Prompt SHA-256: \`${config.promptSha256}\``,
     `- Prices checked: ${config.pricesCheckedAt}`,
     `- openai SDK: ${config.openaiSdkVersion}`,

@@ -11,7 +11,16 @@ import {
   normalizeCategory,
 } from '#classifier/types'
 
+/**
+ * - explicit: no prompt caching (explicit mode, no breakpoints). The app
+ *   always uses this.
+ * - default: OpenAI's default implicit caching. Only for eval comparisons.
+ */
+export type PromptCacheMode = 'explicit' | 'default'
+
 export type OpenAIClassifierOptions = {
+  /** Defaults to explicit (no prompt caching) */
+  promptCacheMode?: PromptCacheMode
   client: Pick<OpenAI, 'responses'>
   reasoningEffort: ReasoningEffort
   timeoutMs: number
@@ -85,8 +94,11 @@ export class OpenAIClassifier implements Classifier {
           store: false,
           // Explicit mode with no breakpoints: no prompt caching, so no cache
           // writes (billed above the input rate) and no cheaper cache reads.
-          // Every call costs the same plain input rate.
-          prompt_cache_options: { mode: 'explicit' },
+          // Every call costs the same plain input rate. Only the eval can
+          // switch back to OpenAI's default caching, for comparisons.
+          ...((this.options.promptCacheMode ?? 'explicit') === 'explicit'
+            ? { prompt_cache_options: { mode: 'explicit' as const } }
+            : {}),
           reasoning: { effort: this.options.reasoningEffort },
           max_output_tokens: MAX_OUTPUT_TOKENS_PER_CALL,
           input: [

@@ -3,6 +3,7 @@ import { resolveReasoningEffort } from '#config/models'
 import { MockClassifier } from '#classifier/mock_classifier'
 import { OpenAIClassifier } from '#classifier/openai_classifier'
 import { type Classifier } from '#classifier/types'
+import { type PromptCacheMode } from '#classifier/openai_classifier'
 
 export const DEFAULT_MODEL_A = 'gpt-6-luna'
 export const DEFAULT_MODEL_B = 'gpt-6.1-sol'
@@ -15,6 +16,8 @@ export type ClassifierSettings = {
   modelB: string | undefined
   reasoningEffort: string | undefined
   timeoutMs: number
+  /** Eval only; the app leaves this unset, which means explicit (no caching) */
+  promptCacheMode?: PromptCacheMode
   mockDelay: { minDelayMs: number; maxDelayMs: number }
   createClient: (apiKey: string, timeoutMs: number) => Pick<OpenAI, 'responses'>
 }
@@ -56,11 +59,13 @@ export function createClassifiers(settings: ClassifierSettings): ClassifierSetup
         client,
         reasoningEffort: effortA,
         timeoutMs: settings.timeoutMs,
+        promptCacheMode: settings.promptCacheMode,
       }),
       new OpenAIClassifier(modelB, {
         client,
         reasoningEffort: effortB,
         timeoutMs: settings.timeoutMs,
+        promptCacheMode: settings.promptCacheMode,
       }),
     ],
   }

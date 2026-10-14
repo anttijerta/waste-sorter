@@ -38,6 +38,7 @@ function config(runs: number): ConfigSnapshot {
     classifiers: 'openai',
     mode: 'parallel',
     runs,
+    promptCacheMode: 'explicit',
     models: [
       { id: 'gpt-6-luna', reasoningEffort: 'low' },
       { id: 'gpt-6.1-sol', reasoningEffort: 'low' },
@@ -91,10 +92,28 @@ describe('eval report', () => {
     )
   })
 
-  it('names files by timestamp, mode, runs and mock', () => {
+  it('names files by timestamp, mode, runs, cache mode and mock', () => {
     expect(resultsBaseName(config(1))).toBe('2026-10-14T16-05-03Z')
-    expect(resultsBaseName({ ...config(3), mode: 'sequential', classifiers: 'mock' })).toBe(
-      '2026-10-14T16-05-03Z-sequential-3runs-mock'
+    expect(
+      resultsBaseName({
+        ...config(3),
+        mode: 'sequential',
+        classifiers: 'mock',
+        promptCacheMode: 'default',
+      })
+    ).toBe('2026-10-14T16-05-03Z-sequential-3runs-cache-default-mock')
+  })
+
+  it('shows the prompt cache mode in the configuration snapshot', () => {
+    const explicit = renderMarkdown(results([[evalRow(0)]]))
+    expect(explicit).toContain('- Prompt cache: explicit (no caching, same as the app)')
+
+    const withDefault = renderMarkdown({
+      ...results([[evalRow(0)]]),
+      config: { ...config(1), promptCacheMode: 'default' },
+    })
+    expect(withDefault).toContain(
+      '- Prompt cache: default (OpenAI default caching, not the app setting)'
     )
   })
 })

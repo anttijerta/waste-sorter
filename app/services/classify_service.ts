@@ -5,6 +5,7 @@ import env from '#start/env'
 import { estimateCallCostMicroEur } from '#classifier/cost'
 import { type Agreement, compareResults } from '#classifier/agreement'
 import { type ClassifierSetup, createClassifiers } from '#classifier/factory'
+import { type PromptCacheMode } from '#classifier/openai_classifier'
 import { type ModelResult, runModel } from '#classifier/run_model'
 import { type Classifier } from '#classifier/types'
 import { type CategoryId, categoryLabel } from '#config/categories'
@@ -55,7 +56,11 @@ export default class ClassifyService {
     return this.classifiers.some((classifier) => classifier.simulated)
   }
 
-  static defaultSetup(): ClassifierSetup {
+  /**
+   * The app's classifiers from env. The eval may override the prompt cache
+   * mode for comparison runs; the app never does.
+   */
+  static defaultSetup(overrides: { promptCacheMode?: PromptCacheMode } = {}): ClassifierSetup {
     const setup = createClassifiers({
       apiKey: env.get('MODEL_API_KEY')?.release(),
       inTest: app.inTest,
@@ -63,6 +68,7 @@ export default class ClassifyService {
       modelB: env.get('MODEL_B'),
       reasoningEffort: env.get('MODEL_REASONING_EFFORT'),
       timeoutMs: env.get('MODEL_TIMEOUT_MS', 20_000),
+      promptCacheMode: overrides.promptCacheMode,
       mockDelay: app.inTest
         ? { minDelayMs: 0, maxDelayMs: 50 }
         : { minDelayMs: 200, maxDelayMs: 900 },

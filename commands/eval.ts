@@ -8,6 +8,7 @@ import type { CommandOptions } from '@adonisjs/core/types/ace'
 import { VERSION as OPENAI_SDK_VERSION } from 'openai/version'
 import env from '#start/env'
 import ClassifyService from '#services/classify_service'
+import { type PromptCacheMode } from '#classifier/openai_classifier'
 import { MAX_IMAGE_BYTES } from '#controllers/classify_controller'
 import { CLASSIFY_PROMPT } from '#classifier/prompt'
 import { resolveReasoningEffort } from '#config/models'
@@ -34,6 +35,14 @@ import {
 const realClock: Clock = { now: () => Date.now(), sleep: (ms) => sleep(ms) }
 
 const MAX_RUNS = 10
+
+const PROMPT_CACHE_MODES: readonly PromptCacheMode[] = ['explicit', 'default']
+
+function promptCacheModeText(mode: PromptCacheMode): string {
+  return mode === 'explicit'
+    ? 'explicit (no caching, same as the app)'
+    : 'default (OpenAI default caching, NOT the app setting; cache writes can add up to 25 % to input cost)'
+}
 
 function formatRange(r: Range | null): string {
   if (!r) return '–'
@@ -66,6 +75,13 @@ export default class Eval extends BaseCommand {
   @flags.number({ description: 'Run the whole set this many times (default 1)', default: 1 })
   declare runs: number
 
+  @flags.string({
+    description:
+      'Prompt cache for this run: explicit (no caching, like the app) or default (OpenAI default caching)',
+    default: 'explicit',
+  })
+  declare cacheMode: string
+
   async run() {
     const runs = this.runs
     if (!Number.isInteger(runs) || runs < 1 || runs > MAX_RUNS) {
@@ -73,6 +89,13 @@ export default class Eval extends BaseCommand {
       this.exitCode = 1
       return
     }
+
+    if (!PROMPT_CACHE_MODES.includes(this.cacheMode as PromptCacheMode)) {
+      this.logger.error(`--cache-mode must be one of: ${PROMPT_CACHE_MODES.join(', ')}`)
+      this.exitCode = 1
+      return
+    }
+    const promptCacheMode = this.cacheMode as PromptCacheMode
 
     const dataDir = this.dataDir || env.get('EVAL_DATA_DIR')
     if (!dataDir) {
@@ -105,7 +128,7 @@ export default class Eval extends BaseCommand {
       throw error
     }
 
-    const setup = ClassifyService.defaultSetup()
+    const setup = ClassifyService.defaultSetup({ promptCacheMode })
     const wrapped = setup.classifiers.map(
       (classifier) => new EvalClassifier(classifier, realClock)
     ) as [EvalClassifier, EvalClassifier]
@@ -117,6 +140,7 @@ export default class Eval extends BaseCommand {
       classifiers: setup.mode,
       mode: this.sequential ? 'sequential' : 'parallel',
       runs,
+      promptCacheMode,
       models: wrapped.map((classifier) => ({
         id: classifier.modelId,
         reasoningEffort: classifier.simulated
@@ -138,6 +162,7 @@ export default class Eval extends BaseCommand {
         `Classifiers: ${config.classifiers === 'openai' ? 'OpenAI (real, paid calls)' : 'MOCK (simulated)'}`,
         `Models: ${config.models.map((m) => `${m.id} (effort ${m.reasoningEffort ?? 'n/a'})`).join(', ')}`,
         `Mode: ${config.mode}, runs: ${runs}`,
+        `Prompt cache: ${promptCacheModeText(promptCacheMode)}`,
         `Images: ${config.images} from ${imagesDir}`,
         `Calls: ${config.calls}, at most ${MAX_CALLS_PER_MINUTE} per minute per model`,
         `Worst-case cost (reservation estimate): ${formatEur(config.worstCaseMicroEur)}`,
