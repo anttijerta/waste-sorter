@@ -2,12 +2,18 @@
 import { type APIRequestContext, type Page, expect } from '@playwright/test'
 
 /**
- * A buffer that starts with the JPEG magic bytes. The mock classifier does
- * not decode images, so this is enough for API-level tests.
+ * A JPEG header with a 16×16 frame, then `payload`, zero-padded to `size`
+ * bytes. The server only reads the header and the mock classifier does not
+ * decode images, so this is enough for API-level tests.
  */
-export function fakeJpeg(size: number): Buffer {
-  const buffer = Buffer.alloc(size)
-  buffer.set([0xff, 0xd8, 0xff, 0xe0])
+export function fakeJpeg(size: number, payload: Buffer = Buffer.alloc(0)): Buffer {
+  // SOI, then a baseline frame header (SOF0): 8-bit, 16×16, one component
+  const header = Buffer.from([
+    0xff, 0xd8, 0xff, 0xc0, 0x00, 0x0b, 0x08, 0x00, 0x10, 0x00, 0x10, 0x01, 0x01, 0x11, 0x00,
+  ])
+  const buffer = Buffer.alloc(Math.max(size, header.length + payload.length))
+  header.copy(buffer)
+  payload.copy(buffer, header.length)
   return buffer
 }
 

@@ -3,7 +3,7 @@ import { readdir, readFile, stat } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { expect, test } from '@playwright/test'
-import { postImage } from './helpers.js'
+import { fakeJpeg, postImage } from './helpers.js'
 
 /**
  * Returns the files in `dir` modified at or after `since` whose contents
@@ -28,7 +28,7 @@ async function filesContaining(dir: string, marker: Buffer, since: number): Prom
 
 test('an uploaded image is never written to the tmp directory', async ({ request }) => {
   const marker = randomBytes(32)
-  const image = Buffer.concat([Buffer.from([0xff, 0xd8, 0xff, 0xe0]), marker, Buffer.alloc(4096)])
+  const image = fakeJpeg(4096, marker)
   const since = Date.now() - 1000
 
   const response = await postImage(request, image)

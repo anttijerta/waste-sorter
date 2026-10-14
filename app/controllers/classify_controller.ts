@@ -5,14 +5,17 @@ import ClassifyService, { type ClassifyResponse } from '#services/classify_servi
 import UsageService from '#usage/usage_service'
 import { hashIp } from '#usage/ip_hash'
 import { type LimitReason } from '#usage/limits'
+import { readJpegSize } from '#classifier/jpeg_size'
 
 /**
  * The browser re-encodes every upload to JPEG and caps it at 1024 px,
  * so anything larger or of another type did not come from our client.
  */
 export const MAX_IMAGE_BYTES = 2 * 1024 * 1024
+export const MAX_IMAGE_SIDE_PX = 1024
 const JPEG_MAGIC = Buffer.from([0xff, 0xd8, 0xff])
-const INVALID_IMAGE = 'Kuva puuttuu tai se ei kelpaa. Lähetä JPEG-kuva, enintään 2 Mt.'
+const INVALID_IMAGE =
+  'Kuva puuttuu tai se ei kelpaa. Lähetä JPEG-kuva, enintään 2 Mt ja 1024 pikseliä.'
 
 const LIMIT_MESSAGES: Record<LimitReason, string> = {
   per_minute: 'Liian monta kuvaa lyhyessä ajassa. Odota hetki ja yritä uudelleen.',
@@ -66,6 +69,12 @@ export default class ClassifyController {
   async store({ request, response }: HttpContext) {
     const image = await readImage(request)
     if (!image || !image.subarray(0, 3).equals(JPEG_MAGIC)) {
+      return response.unprocessableEntity({ error: INVALID_IMAGE })
+    }
+    // The browser downscales to 1024 px. Checking it here keeps the token
+    // estimate (config/pricing.ts) an upper bound for any client.
+    const size = readJpegSize(image)
+    if (!size || size.width > MAX_IMAGE_SIDE_PX || size.height > MAX_IMAGE_SIDE_PX) {
       return response.unprocessableEntity({ error: INVALID_IMAGE })
     }
 
