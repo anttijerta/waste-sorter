@@ -21,14 +21,13 @@ function formatCost(value: number | null): string {
   return value === null ? '–' : usd.format(value)
 }
 
-function imageCost(result: ClassifyResponse): number {
-  return result.models.reduce((sum, model) => sum + (model.costUsd ?? 0), 0)
-}
+/** Running cost per model, in the same order as `result.models`. */
+type SessionTotals = [number, number]
 
 export default function Home() {
   const [state, setState] = useState<State>({ status: 'idle' })
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
-  const [session, setSession] = useState({ images: 0, totalUsd: 0 })
+  const [sessionTotals, setSessionTotals] = useState<SessionTotals>([0, 0])
 
   useEffect(() => {
     return () => {
@@ -47,10 +46,10 @@ export default function Home() {
       setPreviewUrl(URL.createObjectURL(jpeg))
       const result = await classifyImage(jpeg)
       setState({ status: 'done', result })
-      setSession((previous) => ({
-        images: previous.images + 1,
-        totalUsd: previous.totalUsd + imageCost(result),
-      }))
+      setSessionTotals(([a, b]) => [
+        a + (result.models[0].costUsd ?? 0),
+        b + (result.models[1].costUsd ?? 0),
+      ])
     } catch (error) {
       const message =
         error instanceof ClassifyError ? error.message : 'Kuvan käsittely epäonnistui.'
@@ -95,7 +94,9 @@ export default function Home() {
                 {state.message}
               </p>
             )}
-            {state.status === 'done' && <Results result={state.result} session={session} />}
+            {state.status === 'done' && (
+              <Results result={state.result} sessionTotals={sessionTotals} />
+            )}
           </div>
         </section>
       )}
@@ -111,12 +112,29 @@ export default function Home() {
 
 function Results({
   result,
-  session,
+  sessionTotals,
 }: {
   result: ClassifyResponse
-  session: { images: number; totalUsd: number }
+  sessionTotals: SessionTotals
 }) {
-  const perImage = imageCost(result)
+  const { models } = result
+
+  /**
+   * One column per model, so every figure belongs to exactly one model.
+   */
+  const costRows: { label: string; testId: string; values: (number | null)[] }[] = [
+    {
+      label: 'Hinta tälle kuvalle',
+      testId: 'cost-image',
+      values: models.map((model) => model.costUsd),
+    },
+    { label: 'Istunto yhteensä', testId: 'cost-session', values: sessionTotals },
+    {
+      label: '1 000 kuvaa maksaisi',
+      testId: 'cost-1000',
+      values: models.map((model) => (model.costUsd === null ? null : model.costUsd * 1000)),
+    },
+  ]
 
   return (
     <>
@@ -135,45 +153,44 @@ function Results({
           <thead>
             <tr>
               <th scope="col">Malli</th>
-              <th scope="col">Luokka</th>
-              <th scope="col" className="num">
-                Viive
-              </th>
-              <th scope="col" className="num">
-                Hinta
-              </th>
+              {models.map((model, index) => (
+                <th key={index} scope="col" className="mono num">
+                  {model.modelId}
+                </th>
+              ))}
             </tr>
           </thead>
           <tbody>
-            {result.models.map((model) => (
-              <tr key={model.modelId}>
-                <td className="mono">{model.modelId}</td>
-                <td>
+            <tr data-testid="category">
+              <th scope="row">Luokka</th>
+              {models.map((model, index) => (
+                <td key={index} className="num">
                   {model.label}
                   {model.error && <span className="row-error"> ({model.error})</span>}
                 </td>
-                <td className="num">{model.latencyMs} ms</td>
-                <td className="num">{formatCost(model.costUsd)}</td>
+              ))}
+            </tr>
+            <tr data-testid="latency">
+              <th scope="row">Viive</th>
+              {models.map((model, index) => (
+                <td key={index} className="num">
+                  {model.latencyMs} ms
+                </td>
+              ))}
+            </tr>
+            {costRows.map((row) => (
+              <tr key={row.testId} data-testid={row.testId}>
+                <th scope="row">{row.label}</th>
+                {row.values.map((value, index) => (
+                  <td key={index} className="num" data-usd={value ?? ''}>
+                    {formatCost(value)}
+                  </td>
+                ))}
               </tr>
             ))}
           </tbody>
         </table>
       </div>
-
-      <dl className="costs" data-testid="costs">
-        <div>
-          <dt>Tämä kuva</dt>
-          <dd>{usd.format(perImage)}</dd>
-        </div>
-        <div>
-          <dt>Istunto yhteensä ({session.images} kuvaa)</dt>
-          <dd data-testid="session-total">{usd.format(session.totalUsd)}</dd>
-        </div>
-        <div>
-          <dt>1 000 kuvaa maksaisi</dt>
-          <dd>{usd.format(perImage * 1000)}</dd>
-        </div>
-      </dl>
     </>
   )
 }

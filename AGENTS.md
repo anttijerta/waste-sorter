@@ -50,7 +50,8 @@ truth. Source: HSY sorting guide (Helsinki region).
 - Same category from both → agreement (green). Different → show both.
 - Cost per call = token usage from the API response × price table in
   `config/pricing.ts`. The table includes the date prices were checked.
-- Show cost per image, total for the session, and "1,000 images would cost".
+- Show, per model: cost per image, total for the session, and "1,000 images
+  would cost". Every figure belongs to exactly one model; no combined totals.
 
 ## Configuration (environment variables)
 
