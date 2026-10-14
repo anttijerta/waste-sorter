@@ -24,15 +24,18 @@ ENV NODE_ENV=production \
     LOG_LEVEL=info \
     APP_URL=http://localhost:3333 \
     SESSION_DRIVER=cookie \
+    DB_PATH=/app/data/db.sqlite3 \
     TZ=UTC
 # APP_KEY must be supplied at runtime; it is never baked into the image.
 
 COPY --from=build --chown=node:node /app/build ./
 COPY --from=deps --chown=node:node /app/node_modules ./node_modules
-RUN mkdir -p tmp && chown node:node tmp
+# data/ holds the SQLite database (mount a volume here); tmp/ is for temp files only.
+RUN mkdir -p tmp data && chown node:node tmp data
 
 USER node
 EXPOSE 3333
 HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
   CMD ["node", "-e", "fetch('http://127.0.0.1:'+process.env.PORT+'/health').then(r=>process.exit(r.ok?0:1),()=>process.exit(1))"]
-CMD ["node", "bin/server.js"]
+# Apply pending migrations on every start, then hand PID 1 to the server.
+CMD ["sh", "-c", "node ace migration:run --force && exec node bin/server.js"]

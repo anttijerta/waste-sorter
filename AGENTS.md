@@ -43,7 +43,11 @@ truth. Source: HSY sorting guide (Helsinki region).
 - Images are downscaled in the browser (max 1024 px, JPEG via canvas
   re-encode, which also strips EXIF). The server re-validates size and type.
 - Images are never stored or logged. Store only counters and anonymous metrics.
-- Rate limiting uses a hashed IP, never the raw IP.
+- Rate limiting uses a hashed IP, never the raw IP: HMAC-SHA256 with
+  `APP_KEY`, with the UTC date in the message so hashes cannot be linked
+  across days. Usage rows are deleted after 35 days.
+- Usage is reserved before the models are called, so concurrent requests
+  cannot exceed a limit. Failed calls still count.
 - Both models are called in parallel with the same prompt and image.
 - Models must return one category id from the list above, as structured
   output. Anything else is treated as `unrecognized`.
@@ -60,7 +64,17 @@ truth. Source: HSY sorting guide (Helsinki region).
 
 - `MODEL_A`, `MODEL_B`: model ids
 - `MODEL_API_KEY`: never in code, images, logs or the repo
-- `RATE_LIMIT_PER_IP_DAILY`, `GLOBAL_MONTHLY_CAP`
+- `DB_PATH`: SQLite file, default `/app/data/db.sqlite3`. Never inside `tmp/`.
+- `RATE_LIMIT_PER_IP_PER_MINUTE` (default 5), `RATE_LIMIT_PER_IP_DAILY`
+  (default 20)
+- `GLOBAL_MONTHLY_CAP_EUR` (default 5): estimated spend from
+  `config/pricing.ts`, not an image count
+- `TRUSTED_PROXIES`: comma-separated IPs/CIDRs of the reverse proxy, the
+  only source allowed to set `X-Forwarded-For`. Empty (default) trusts
+  nobody. The infra Compose network must use a fixed subnet
+  (`ipam.config.subnet`): Docker assigns subnets dynamically and they can
+  change when containers are recreated. Never publish the app port
+  directly, or clients reach it through Docker NAT.
 - `EVAL_DATA_DIR`: path to test images and `labels.csv`, outside this repo.
   Never copy eval images into the repo.
 
