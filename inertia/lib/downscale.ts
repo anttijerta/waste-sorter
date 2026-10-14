@@ -1,5 +1,5 @@
 export const MAX_SIDE_PX = 1024
-const JPEG_QUALITY = 0.85
+export const JPEG_QUALITY = 0.85
 
 /**
  * Scales the image so its longest side is at most MAX_SIDE_PX and
