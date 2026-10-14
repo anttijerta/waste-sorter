@@ -218,6 +218,11 @@ img {
   background: var(--card);
   color: var(--ink-2);
 }
+.banner--paused {
+  background: var(--paper);
+  border: 1px solid var(--line-2);
+  color: var(--ink-2);
+}
 .banner--error {
   background: var(--err-bg);
   color: var(--err);

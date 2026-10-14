@@ -3,13 +3,13 @@ import { type ChangeEvent, useEffect, useState } from 'react'
 import { type InertiaProps } from '~/types'
 import DefaultLayout from '~/layouts/default'
 import { downscaleToJpeg } from '~/lib/downscale'
-import { type ClassifyResponse, ClassifyError, classifyImage } from '~/lib/api'
+import { type ClassifyResponse, type LimitReason, ClassifyError, classifyImage } from '~/lib/api'
 
 type State =
   | { status: 'idle' }
   | { status: 'loading' }
   | { status: 'done'; result: ClassifyResponse }
-  | { status: 'error'; message: string }
+  | { status: 'error'; message: string; limit: LimitReason | null }
 
 const usd = new Intl.NumberFormat('fi-FI', {
   style: 'currency',
@@ -52,9 +52,11 @@ export default function Home({ demoMode }: InertiaProps<{ demoMode: boolean }>) 
         b + (result.models[1].costUsd ?? 0),
       ])
     } catch (error) {
-      const message =
-        error instanceof ClassifyError ? error.message : 'Kuvan käsittely epäonnistui.'
-      setState({ status: 'error', message })
+      if (error instanceof ClassifyError) {
+        setState({ status: 'error', message: error.message, limit: error.limit })
+      } else {
+        setState({ status: 'error', message: 'Kuvan käsittely epäonnistui.', limit: null })
+      }
     }
   }
 
@@ -97,11 +99,7 @@ export default function Home({ demoMode }: InertiaProps<{ demoMode: boolean }>) 
           <img src={previewUrl} alt="Lähetetty kuva" className="preview" />
           <div className="card__body">
             {state.status === 'loading' && <p className="muted">Luokitellaan…</p>}
-            {state.status === 'error' && (
-              <p className="banner banner--error" role="alert" data-testid="error">
-                {state.message}
-              </p>
-            )}
+            {state.status === 'error' && <ErrorBanner {...state} />}
             {state.status === 'done' && (
               <Results result={state.result} sessionTotals={sessionTotals} />
             )}
@@ -109,12 +107,32 @@ export default function Home({ demoMode }: InertiaProps<{ demoMode: boolean }>) 
         </section>
       )}
 
-      {!previewUrl && state.status === 'error' && (
-        <p className="banner banner--error" role="alert" data-testid="error">
-          {state.message}
-        </p>
-      )}
+      {!previewUrl && state.status === 'error' && <ErrorBanner {...state} />}
     </>
+  )
+}
+
+/**
+ * A hit usage limit is not the user's fault: the monthly cap pauses the
+ * whole demo, so it gets a neutral style instead of the error colour.
+ */
+function ErrorBanner({ message, limit }: { message: string; limit: LimitReason | null }) {
+  if (!limit) {
+    return (
+      <p className="banner banner--error" role="alert" data-testid="error">
+        {message}
+      </p>
+    )
+  }
+  return (
+    <p
+      className={`banner ${limit === 'monthly_cap' ? 'banner--paused' : 'banner--disagree'}`}
+      role="alert"
+      data-testid="limit-error"
+      data-code={limit}
+    >
+      {message}
+    </p>
   )
 }
 
