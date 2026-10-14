@@ -81,6 +81,7 @@ export async function runModel(
   image: Buffer,
   log: ModelLogger
 ): Promise<ModelResult> {
+  await classifier.waitForTurn?.()
   const started = performance.now()
   try {
     const output = await classifier.classify(image)

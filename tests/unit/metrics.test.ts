@@ -20,6 +20,7 @@ function row(
     latencyMs: m.latency ?? 1000,
     error: m.error ?? null,
     rateLimitRetries: 0,
+    usage: null,
   })
   return {
     file,

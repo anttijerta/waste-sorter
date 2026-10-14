@@ -1,4 +1,5 @@
 import { type CategoryId } from '#config/categories'
+import { type TokenUsage } from '#classifier/types'
 import { type Difficulty } from '#eval/labels'
 
 export type ModelAnswer = {
@@ -7,10 +8,12 @@ export type ModelAnswer = {
   correct: boolean
   /** Integer micro-euros; null when a call failed without reporting usage */
   costMicroEur: number | null
-  /** Call latency with throttle and retry waits subtracted */
+  /** Duration of the API call; a rate-limit retry wait is not included */
   latencyMs: number
   error: string | null
   rateLimitRetries: number
+  /** Token usage reported by the API; null when the call failed without it */
+  usage: TokenUsage | null
 }
 
 export type EvalRow = {

@@ -153,7 +153,10 @@ export default class Eval extends BaseCommand {
           answer: model.category,
           correct: model.error === null && model.category === label.expected,
           costMicroEur: model.costMicroEur,
-          latencyMs: Math.max(0, model.latencyMs - classifier.takeWaitedMs()),
+          // The throttle wait happens before the timer starts; only a
+          // rate-limit retry wait is inside the timed call.
+          latencyMs: Math.max(0, model.latencyMs - classifier.takeRetryWaitMs()),
+          usage: classifier.takeLastUsage(),
           error: model.error,
           rateLimitRetries: newRetries.length,
         }

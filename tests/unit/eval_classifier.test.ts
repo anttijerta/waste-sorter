@@ -47,14 +47,34 @@ describe('EvalClassifier', () => {
     const model = inner(async () => OUTPUT)
     const throttled = new EvalClassifier(model, clock)
 
-    await throttled.classify(Buffer.alloc(1))
-    await throttled.classify(Buffer.alloc(1))
-    await throttled.classify(Buffer.alloc(1))
+    for (let i = 0; i < 3; i++) {
+      await throttled.waitForTurn()
+      await throttled.classify(Buffer.alloc(1))
+    }
 
     expect(model.classify).toHaveBeenCalledTimes(3)
     expect(clock.sleeps).toEqual([3000, 3000])
-    expect(throttled.takeWaitedMs()).toBe(6000)
-    expect(throttled.takeWaitedMs()).toBe(0)
+    // Throttling is not a retry wait, so nothing is subtracted from latency
+    expect(throttled.takeRetryWaitMs()).toBe(0)
+  })
+
+  it('keeps the usage of the last call, also from a failed call', async () => {
+    const throttled = new EvalClassifier(
+      inner(async () => OUTPUT),
+      fakeClock()
+    )
+    await throttled.classify(Buffer.alloc(1))
+    expect(throttled.takeLastUsage()).toEqual(OUTPUT.usage)
+    expect(throttled.takeLastUsage()).toBeNull()
+
+    const failing = new EvalClassifier(
+      inner(async () => {
+        throw new ClassifierError('incomplete', OUTPUT.usage)
+      }),
+      fakeClock()
+    )
+    await expect(failing.classify(Buffer.alloc(1))).rejects.toBeInstanceOf(ClassifierError)
+    expect(failing.takeLastUsage()).toEqual(OUTPUT.usage)
   })
 
   it('does not wait when calls are already far enough apart', async () => {
@@ -63,10 +83,10 @@ describe('EvalClassifier', () => {
       inner(async () => OUTPUT),
       clock
     )
-    await throttled.classify(Buffer.alloc(1))
+    await throttled.waitForTurn()
     await clock.sleep(10_000)
     clock.sleeps.length = 0
-    await throttled.classify(Buffer.alloc(1))
+    await throttled.waitForTurn()
     expect(clock.sleeps).toEqual([])
   })
 
@@ -84,7 +104,7 @@ describe('EvalClassifier', () => {
     expect(model.classify).toHaveBeenCalledTimes(2)
     expect(clock.sleeps).toEqual([7000])
     expect(throttled.retries).toEqual([{ modelId: 'gpt-6-luna', waitMs: 7000 }])
-    expect(throttled.takeWaitedMs()).toBe(7000)
+    expect(throttled.takeRetryWaitMs()).toBe(7000)
   })
 
   it('prefers retry-after-ms, defaults to 30 s and never waits over 120 s', async () => {

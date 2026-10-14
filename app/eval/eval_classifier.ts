@@ -1,4 +1,9 @@
-import { type Classifier, type ClassifierOutput, ClassifierError } from '#classifier/types'
+import {
+  type Classifier,
+  type ClassifierOutput,
+  ClassifierError,
+  type TokenUsage,
+} from '#classifier/types'
 
 export const MAX_CALLS_PER_MINUTE = 20
 const DEFAULT_RETRY_WAIT_MS = 30_000
@@ -32,17 +37,19 @@ function rateLimitWaitMs(error: unknown): number | null {
  * Wraps one model's classifier for the eval (the app never uses this):
  *
  * - Throttle: call starts are at least 60 s / MAX_CALLS_PER_MINUTE apart.
+ *   This happens in waitForTurn(), before runModel starts its timer, so
+ *   the measured and logged latency is the call alone.
  * - On a rate-limit error (HTTP 429), waits as the API asks and retries
- *   once. Retries are recorded for the report.
- *
- * Time spent waiting is accumulated so the eval can subtract it from the
- * latency measured around classify().
+ *   once. That wait happens inside the timed call; it is recorded so the
+ *   eval can report the call duration without it.
+ * - Keeps the token usage of the last call, for cache reporting.
  */
 export class EvalClassifier implements Classifier {
   readonly modelId: string
   readonly simulated: boolean
   readonly retries: RateLimitRetry[] = []
-  #waitedMs = 0
+  #retryWaitMs = 0
+  #lastUsage: TokenUsage | null = null
   #lastStart = Number.NEGATIVE_INFINITY
 
   constructor(
@@ -54,36 +61,54 @@ export class EvalClassifier implements Classifier {
     this.simulated = inner.simulated
   }
 
-  /** Returns and resets the time waited since the last call. */
-  takeWaitedMs(): number {
-    const waited = this.#waitedMs
-    this.#waitedMs = 0
+  /** Returns and resets the rate-limit retry wait inside the last call. */
+  takeRetryWaitMs(): number {
+    const waited = this.#retryWaitMs
+    this.#retryWaitMs = 0
     return waited
   }
 
-  async classify(image: Buffer): Promise<ClassifierOutput> {
-    await this.#throttle()
-    try {
-      return await this.inner.classify(image)
-    } catch (error) {
-      const waitMs = rateLimitWaitMs(error)
-      if (waitMs === null) throw error
-      this.retries.push({ modelId: this.modelId, waitMs })
-      await this.#wait(waitMs)
-      await this.#throttle()
-      return this.inner.classify(image)
-    }
+  /** Returns and resets the usage of the last call (null if unknown). */
+  takeLastUsage(): TokenUsage | null {
+    const usage = this.#lastUsage
+    this.#lastUsage = null
+    return usage
   }
 
-  async #throttle() {
+  async waitForTurn(): Promise<void> {
     const waitMs = this.#lastStart + this.minIntervalMs - this.clock.now()
-    if (waitMs > 0) await this.#wait(waitMs)
+    if (waitMs > 0) await this.clock.sleep(waitMs)
     this.#lastStart = this.clock.now()
   }
 
-  async #wait(ms: number) {
-    const started = this.clock.now()
-    await this.clock.sleep(ms)
-    this.#waitedMs += this.clock.now() - started
+  async classify(image: Buffer): Promise<ClassifierOutput> {
+    try {
+      return this.#record(await this.inner.classify(image))
+    } catch (error) {
+      const waitMs = rateLimitWaitMs(error)
+      if (waitMs === null) throw this.#recordError(error)
+      this.retries.push({ modelId: this.modelId, waitMs })
+
+      const started = this.clock.now()
+      await this.clock.sleep(waitMs)
+      await this.waitForTurn()
+      this.#retryWaitMs += this.clock.now() - started
+
+      try {
+        return this.#record(await this.inner.classify(image))
+      } catch (retryError) {
+        throw this.#recordError(retryError)
+      }
+    }
+  }
+
+  #record(output: ClassifierOutput): ClassifierOutput {
+    this.#lastUsage = output.usage
+    return output
+  }
+
+  #recordError(error: unknown): unknown {
+    this.#lastUsage = error instanceof ClassifierError ? error.usage : null
+    return error
   }
 }
