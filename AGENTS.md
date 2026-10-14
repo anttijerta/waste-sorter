@@ -68,6 +68,13 @@ truth. Source: HSY sorting guide (Helsinki region).
 4. Real model calls
 5. Eval script over `EVAL_DATA_DIR`, UI polish, "show what happened" view
 
+Step 3 must also:
+
+- Move the SQLite file out of `tmp/` into its own `data/` directory
+  (e.g. `/app/data/db.sqlite3` in the container), configurable via an
+  env variable (e.g. `DB_PATH`). The database must not share a directory
+  with temporary files.
+
 Step 4 must also:
 
 - Fall back to the mock classifier when `MODEL_API_KEY` is missing.
