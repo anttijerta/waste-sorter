@@ -64,8 +64,9 @@ function parseCategory(response: Response): CategoryId {
  * Classifies an image with an OpenAI model through the Responses API, with
  * structured output restricted to the category ids.
  *
- * Privacy: the response is not stored at OpenAI (store: false), and
- * nothing here logs the image, the request or the API key.
+ * Privacy: the response is not stored at OpenAI (store: false), the
+ * prompt is not cached, and nothing here logs the image, the request or
+ * the API key.
  */
 export class OpenAIClassifier implements Classifier {
   readonly simulated = false
@@ -82,6 +83,10 @@ export class OpenAIClassifier implements Classifier {
         {
           model: this.modelId,
           store: false,
+          // Explicit mode with no breakpoints: no prompt caching, so no cache
+          // writes (billed above the input rate) and no cheaper cache reads.
+          // Every call costs the same plain input rate.
+          prompt_cache_options: { mode: 'explicit' },
           reasoning: { effort: this.options.reasoningEffort },
           max_output_tokens: MAX_OUTPUT_TOKENS_PER_CALL,
           input: [

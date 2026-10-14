@@ -95,6 +95,30 @@ describe('runModel', () => {
     expect(logged).not.toContain(IMAGE.toString('base64'))
   })
 
+  it('warns when the API reports cache tokens although caching is disabled', async () => {
+    const log = { info: vi.fn(), warn: vi.fn() }
+    await runModel(
+      classifierThat(async () => ({
+        category: 'glass',
+        usage: { ...usage(300), cacheWriteTokens: 1114 },
+      })),
+      IMAGE,
+      log
+    )
+    expect(log.warn).toHaveBeenCalledWith(
+      { modelId: 'gpt-6.1-sol', cachedInputTokens: 0, cacheWriteTokens: 1114 },
+      'prompt cache used although it is disabled'
+    )
+
+    const quiet = { info: vi.fn(), warn: vi.fn() }
+    await runModel(
+      classifierThat(async () => ({ category: 'glass', usage: usage(300) })),
+      IMAGE,
+      quiet
+    )
+    expect(quiet.warn).not.toHaveBeenCalled()
+  })
+
   it('warns when a call costs more than the reserved estimate', async () => {
     const log = { info: vi.fn(), warn: vi.fn() }
     await runModel(

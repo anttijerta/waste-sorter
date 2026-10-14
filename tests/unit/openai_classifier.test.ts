@@ -81,6 +81,9 @@ describe('OpenAIClassifier', () => {
     const [body, options] = create.mock.calls[0] as [any, any]
     expect(body.model).toBe('gpt-6-luna')
     expect(body.store).toBe(false)
+    // No prompt caching: explicit mode and no breakpoint anywhere
+    expect(body.prompt_cache_options).toEqual({ mode: 'explicit' })
+    expect(JSON.stringify(body)).not.toContain('prompt_cache_breakpoint')
     expect(body.reasoning).toEqual({ effort: 'low' })
     expect(body.max_output_tokens).toBe(MAX_OUTPUT_TOKENS_PER_CALL)
 

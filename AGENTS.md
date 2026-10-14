@@ -49,7 +49,9 @@ truth. Source: HSY sorting guide (Helsinki region).
 - Usage is reserved before the models are called, so concurrent requests
   cannot exceed a limit. Failed calls still count.
 - Both models are called in parallel with the same prompt, image and
-  settings (OpenAI Responses API, `store: false`, no automatic retries).
+  settings (OpenAI Responses API, `store: false`, prompt caching off with
+  `prompt_cache_options: { mode: 'explicit' }` and no breakpoints, no
+  automatic retries).
 - Tests and CI never call the real API: the test environment always uses
   the mock classifiers.
 - Models must return one category id from the list above, as structured
