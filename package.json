@@ -81,6 +81,7 @@
     "better-sqlite3": "^13.0.3",
     "edge.js": "^6.5.1",
     "luxon": "^3.7.2",
+    "openai": "7.25.0",
     "proxy-addr": "^2.0.8",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
