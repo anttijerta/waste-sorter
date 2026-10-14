@@ -54,7 +54,7 @@ Budget is reserved before the models are called, so parallel requests cannot exc
 
 - [x] 1. Skeleton with a mock classifier
 - [x] 2. Docker image + CI workflow that pushes to GHCR
-- [ ] 3. Usage caps: per IP and global monthly
+- [x] 3. Usage caps: per IP and global monthly
 - [ ] 4. Real model calls
 - [ ] 5. Eval script, UI polish, "show what happened" view
 
