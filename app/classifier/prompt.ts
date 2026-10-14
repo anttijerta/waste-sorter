@@ -7,7 +7,6 @@ import { CATEGORIES } from '#config/categories'
 export const CLASSIFY_PROMPT = [
   'Classify the waste item in the photo into exactly one category of the',
   'Helsinki region (HSY) waste sorting guide. Answer with the category id.',
-  'Sort items according to the waste sorting rules of the Helsinki region (HSY).',
   '',
   'Categories (id: Finnish name):',
   ...CATEGORIES.map((category) => `- ${category.id}: ${category.label}`),
