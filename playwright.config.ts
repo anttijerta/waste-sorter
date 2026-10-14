@@ -17,9 +17,9 @@ const servers = {
     env: { RATE_LIMIT_PER_IP_DAILY: '2', TRUSTED_PROXIES: '192.0.2.1' },
   },
   'global-cap': {
-    // Mock estimate is 0.003125 EUR per image: 3 reservations fit, a 4th does not.
+    // Mock estimate is 17,500 micro-euros per image: 3 reservations fit, a 4th does not.
     port: 3337,
-    env: { GLOBAL_MONTHLY_CAP_EUR: '0.0095' },
+    env: { GLOBAL_MONTHLY_CAP_EUR: '0.06' },
   },
 } as const
 
@@ -61,6 +61,10 @@ export default defineConfig({
         RATE_LIMIT_PER_IP_DAILY: '1000',
         GLOBAL_MONTHLY_CAP_EUR: '1000',
         TRUSTED_PROXIES: '',
+        // Tests never call the real model API. NODE_ENV=test is what forces
+        // the mock classifier: an empty value here does not override a key
+        // in .env, because the env loader treats empty as unset.
+        MODEL_API_KEY: '',
         ...server.env,
       },
       // Each server needs a fresh database, so never reuse a running one.

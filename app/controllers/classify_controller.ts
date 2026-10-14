@@ -81,7 +81,7 @@ export default class ClassifyController {
     // Reserve budget before calling the models, so concurrent requests
     // cannot exceed the limits. Invalid uploads above never count.
     const ipHash = hashIp(request.ip(), env.get('APP_KEY').release(), new Date())
-    const reservation = await this.usage.reserve(ipHash, this.classifyService.reserveEur)
+    const reservation = await this.usage.reserve(ipHash, this.classifyService.reserveMicroEur)
     if (!reservation.ok) {
       if (reservation.reason === 'per_minute') {
         response.header('Retry-After', '60')
@@ -97,7 +97,7 @@ export default class ClassifyController {
       result = await this.classifyService.classify(image)
       return result
     } finally {
-      await this.usage.settle(reservation.id, this.classifyService.settledCostEur(result))
+      await this.usage.settle(reservation.id, this.classifyService.settledCostMicroEur(result))
     }
   }
 }

@@ -1,80 +1,51 @@
-import { performance } from 'node:perf_hooks'
+import OpenAI from 'openai'
 import app from '@adonisjs/core/services/app'
+import logger from '@adonisjs/core/services/logger'
 import env from '#start/env'
-import { costUsd, estimateImageCostEur } from '#classifier/cost'
-import { ESTIMATED_USAGE_PER_CALL, USD_TO_EUR } from '#config/pricing'
+import { estimateCallCostMicroEur } from '#classifier/cost'
 import { type Agreement, compareResults } from '#classifier/agreement'
-import { MockClassifier } from '#classifier/mock_classifier'
+import { type ClassifierSetup, createClassifiers } from '#classifier/factory'
+import { type ModelResult, runModel } from '#classifier/run_model'
 import { type Classifier } from '#classifier/types'
 import { type CategoryId, categoryLabel } from '#config/categories'
 
-export type ModelResult = {
-  modelId: string
-  category: CategoryId
-  label: string
-  latencyMs: number
-  costUsd: number | null
-  error: string | null
-}
+export type { ModelResult }
 
 export type ClassifyResponse = {
   models: [ModelResult, ModelResult]
   agreement: { agreed: true; category: CategoryId; label: string } | { agreed: false }
 }
 
-/**
- * A failing model must not fail the whole request: it is reported as
- * "unrecognized" with an error message, and the other result still shows.
- */
-async function runOne(classifier: Classifier, image: Buffer): Promise<ModelResult> {
-  const started = performance.now()
-  try {
-    const output = await classifier.classify(image)
-    return {
-      modelId: classifier.modelId,
-      category: output.category,
-      label: categoryLabel(output.category),
-      latencyMs: Math.round(performance.now() - started),
-      costUsd: costUsd(classifier.modelId, output.usage),
-      error: null,
-    }
-  } catch {
-    return {
-      modelId: classifier.modelId,
-      category: 'unrecognized',
-      label: categoryLabel('unrecognized'),
-      latencyMs: Math.round(performance.now() - started),
-      costUsd: null,
-      error: 'Mallin kutsu epäonnistui',
-    }
-  }
-}
-
 export default class ClassifyService {
   /**
-   * Budget reserved per image before the models are called. Computing it
-   * here makes the app fail at startup when a model has no price.
+   * Budget reserved per image before the models are called, in integer
+   * micro-euros. Computing it here makes the app fail at startup when a
+   * model has no price.
    */
-  readonly reserveEur: number
+  readonly reserveMicroEur: number
 
   constructor(
-    private classifiers: [Classifier, Classifier] = ClassifyService.defaultClassifiers()
+    private classifiers: [Classifier, Classifier] = ClassifyService.defaultSetup().classifiers
   ) {
-    this.reserveEur = estimateImageCostEur(classifiers.map((classifier) => classifier.modelId))
+    this.reserveMicroEur = classifiers.reduce(
+      (sum, classifier) => sum + estimateCallCostMicroEur(classifier.modelId),
+      0
+    )
   }
 
   /**
-   * Settled cost of one image in EUR. A model without a known cost (failed
-   * call) keeps its reserved estimate, so failed calls still count.
+   * Settled cost of one image in micro-euros. A model without a known cost
+   * (failed without usage) keeps its reserved estimate, so failed calls
+   * still count.
    */
-  settledCostEur(result: ClassifyResponse | undefined): number {
+  settledCostMicroEur(result: ClassifyResponse | undefined): number {
     if (!result) {
-      return this.reserveEur
+      return this.reserveMicroEur
     }
-    return result.models.reduce((sum, model) => {
-      const usd = model.costUsd ?? costUsd(model.modelId, ESTIMATED_USAGE_PER_CALL)!
-      return sum + usd * USD_TO_EUR
-    }, 0)
+    return result.models.reduce(
+      (sum, model) => sum + (model.costMicroEur ?? estimateCallCostMicroEur(model.modelId)),
+      0
+    )
   }
 
   /**
@@ -84,14 +55,28 @@ export default class ClassifyService {
     return this.classifiers.some((classifier) => classifier.simulated)
   }
 
-  static defaultClassifiers(): [Classifier, Classifier] {
-    const delay = app.inTest
-      ? { minDelayMs: 0, maxDelayMs: 50 }
-      : { minDelayMs: 200, maxDelayMs: 900 }
-    return [
-      new MockClassifier(env.get('MODEL_A', 'mock-a'), delay),
-      new MockClassifier(env.get('MODEL_B', 'mock-b'), delay),
-    ]
+  static defaultSetup(): ClassifierSetup {
+    const setup = createClassifiers({
+      apiKey: env.get('MODEL_API_KEY')?.release(),
+      inTest: app.inTest,
+      modelA: env.get('MODEL_A'),
+      modelB: env.get('MODEL_B'),
+      reasoningEffort: env.get('MODEL_REASONING_EFFORT'),
+      timeoutMs: env.get('MODEL_TIMEOUT_MS', 20_000),
+      mockDelay: app.inTest
+        ? { minDelayMs: 0, maxDelayMs: 50 }
+        : { minDelayMs: 200, maxDelayMs: 900 },
+      // No automatic retries, and the SDK never logs requests.
+      createClient: (apiKey, timeoutMs) =>
+        new OpenAI({ apiKey, timeout: timeoutMs, maxRetries: 0, logLevel: 'off' }),
+    })
+    logger.info(
+      { mode: setup.mode, models: setup.classifiers.map((classifier) => classifier.modelId) },
+      setup.mode === 'mock'
+        ? 'mock classifier active (no MODEL_API_KEY, or test environment)'
+        : 'OpenAI classifiers active'
+    )
+    return setup
   }
 
   /**
@@ -99,8 +84,8 @@ export default class ClassifyService {
    */
   async classify(image: Buffer): Promise<ClassifyResponse> {
     const [a, b] = await Promise.all([
-      runOne(this.classifiers[0], image),
-      runOne(this.classifiers[1], image),
+      runModel(this.classifiers[0], image, logger),
+      runModel(this.classifiers[1], image, logger),
     ])
     const agreement: Agreement =
       a.error || b.error ? { agreed: false } : compareResults(a.category, b.category)
