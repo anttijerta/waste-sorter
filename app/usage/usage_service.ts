@@ -1,6 +1,11 @@
 import type { Database } from '@adonisjs/lucid/database'
 import { type LimitReason, type UsageLimits, checkLimits } from '#usage/limits'
 import { utcDay, utcMonth } from '#usage/ip_hash'
+import {
+  type ClassificationOutcome,
+  recordClassification,
+  recordRejection,
+} from '#usage/daily_stats'
 
 const MINUTE_MS = 60 * 1000
 const HOUR_MS = 60 * MINUTE_MS
@@ -58,6 +63,8 @@ export default class UsageService {
         this.limits
       )
       if (!decision.ok) {
+        // Counted in the same transaction, so the statistics never miss one.
+        await recordRejection(trx, day, decision.reason)
         return decision
       }
 
@@ -73,16 +80,32 @@ export default class UsageService {
   }
 
   /**
-   * Replaces the reserved estimate with the settled cost. Never called with
-   * zero for a failed call: the caller keeps the estimate for any model
-   * whose usage is unknown, so failed calls still count.
+   * Replaces the reserved estimate with the settled cost and adds the image
+   * to the daily statistics, in one transaction. Never called with zero for
+   * a failed call: the caller keeps the estimate for any model whose usage
+   * is unknown, so failed calls still count.
+   *
+   * The statistics use the reservation's day, so a request that crosses
+   * midnight is counted on one day only.
    */
-  async settle(id: number, costMicroEur: number): Promise<void> {
-    await this.db.from('usage_events').where('id', id).update({ cost_micro_eur: costMicroEur })
+  async settle(
+    id: number,
+    costMicroEur: number,
+    outcome: ClassificationOutcome | null
+  ): Promise<void> {
+    await this.db.transaction(async (trx) => {
+      const row = await trx.from('usage_events').where('id', id).select('day').first()
+      if (!row) {
+        throw new Error(`No usage reservation ${id}`)
+      }
+      await trx.from('usage_events').where('id', id).update({ cost_micro_eur: costMicroEur })
+      await recordClassification(trx, row.day, costMicroEur, outcome)
+    })
   }
 
   /**
-   * Deletes rows older than 35 days, at most once an hour.
+   * Deletes usage rows older than 35 days, at most once an hour. The daily
+   * statistics are kept permanently.
    */
   async #cleanupIfDue(now: Date): Promise<void> {
     if (now.getTime() - this.#lastCleanup < HOUR_MS) {

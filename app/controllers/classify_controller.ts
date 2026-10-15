@@ -102,7 +102,20 @@ export default class ClassifyController {
       result = await this.classifyService.classify(clean)
       return result
     } finally {
-      await this.usage.settle(reservation.id, this.classifyService.settledCostMicroEur(result))
+      await this.usage.settle(
+        reservation.id,
+        this.classifyService.settledCostMicroEur(result),
+        result
+          ? {
+              agreed: result.agreement.agreed,
+              models: result.models.map((model) => ({
+                modelId: model.modelId,
+                category: model.category,
+                failed: model.error !== null,
+              })),
+            }
+          : null
+      )
     }
   }
 }

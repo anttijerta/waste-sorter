@@ -6,6 +6,49 @@
 
 import { BaseModel, column } from '@adonisjs/lucid/orm'
 
+export class DailyCategoryCountSchema extends BaseModel {
+  static $columns = ['category', 'count', 'day', 'modelId'] as const
+  $columns = DailyCategoryCountSchema.$columns
+  @column()
+  declare category: string
+  @column()
+  declare count: number
+  @column({ isPrimary: true })
+  declare day: string
+  @column()
+  declare modelId: string
+}
+
+export class DailyStatSchema extends BaseModel {
+  static $columns = [
+    'agreements',
+    'costMicroEur',
+    'day',
+    'errors',
+    'images',
+    'rejectedDaily',
+    'rejectedMonthlyCap',
+    'rejectedPerMinute',
+  ] as const
+  $columns = DailyStatSchema.$columns
+  @column()
+  declare agreements: number
+  @column()
+  declare costMicroEur: bigint | number
+  @column({ isPrimary: true })
+  declare day: string
+  @column()
+  declare errors: number
+  @column()
+  declare images: number
+  @column()
+  declare rejectedDaily: number
+  @column()
+  declare rejectedMonthlyCap: number
+  @column()
+  declare rejectedPerMinute: number
+}
+
 export class UsageEventSchema extends BaseModel {
   static $columns = ['costMicroEur', 'createdAtMs', 'day', 'id', 'ipHash', 'month'] as const
   $columns = UsageEventSchema.$columns

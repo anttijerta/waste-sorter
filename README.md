@@ -28,6 +28,7 @@ flowchart LR
 - Images are never stored or logged by this app. They are held in memory only for the duration of the request.
 - To classify an image, the app sends it to the OpenAI API with response storage turned off (`store: false`). OpenAI's API data policies apply to that request.
 - Metadata such as location is removed twice: in the browser, because the canvas re-encode does not keep it, and again on the server before the image is sent to the models. The server does not rely on the browser: it drops all EXIF, XMP, ICC and comment segments and anything after the end of the image, without re-encoding.
+- Daily statistics (`node ace stats`) hold only counters per UTC day: images, agreements, errors, rejected requests per limit, total cost and answers per category and model. No visitor data; they are kept permanently.
 - Rate limiting never stores the raw IP: the key is an HMAC-SHA256 of the IP with the app secret and the UTC date, so it cannot be linked across days. Usage rows are deleted after 35 days.
 
 ## 🚦 Usage limits
@@ -99,6 +100,13 @@ npm run test:unit                    # Vitest
 npx playwright install chromium      # first time only
 npm run test:e2e                     # Playwright, starts its own servers on ports 3334, 3336, 3337
 npm test                             # both
+```
+
+Daily statistics:
+
+```sh
+node ace stats             # last 30 days
+node ace stats --days=90
 ```
 
 Eval (makes paid API calls):

@@ -1,37 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { Logger } from '@adonisjs/core/logger'
-import { Database } from '@adonisjs/lucid/database'
-import CreateUsageEvents from '../../database/migrations/1791977231343_create_usage_events_table.js'
-import ConvertUsageCostToMicroEur from '../../database/migrations/1791980518147_convert_usage_cost_to_micro_eur.js'
+import { type Database } from '@adonisjs/lucid/database'
 import UsageService from '#usage/usage_service'
+import { createDatabase } from './test_database.js'
 
 // Integer micro-euros
 const ESTIMATE = 3125
-
-/**
- * A real, in-memory SQLite database with the real migrations applied. The
- * SQLite pool holds one connection, as in production.
- */
-async function createDatabase(): Promise<Database> {
-  const db = new Database(
-    {
-      connection: 'sqlite',
-      connections: {
-        sqlite: {
-          client: 'better-sqlite3',
-          connection: { filename: ':memory:' },
-          useNullAsDefault: true,
-        },
-      },
-    },
-    new Logger({ enabled: false }),
-    { emit() {}, hasListeners: () => false } as any
-  )
-  for (const Migration of [CreateUsageEvents, ConvertUsageCostToMicroEur]) {
-    await new Migration(db.connection(), Migration.name).execUp()
-  }
-  return db
-}
 
 describe('UsageService', () => {
   let db: Database
@@ -94,7 +67,7 @@ describe('UsageService', () => {
     expect(first.ok).toBe(true)
     expect(await usage.reserve('b', ESTIMATE)).toEqual({ ok: false, reason: 'monthly_cap' })
 
-    await usage.settle((first as { id: number }).id, Math.floor(ESTIMATE / 4))
+    await usage.settle((first as { id: number }).id, Math.floor(ESTIMATE / 4), null)
     expect(await usage.reserve('b', ESTIMATE)).toMatchObject({ ok: true })
   })
 
