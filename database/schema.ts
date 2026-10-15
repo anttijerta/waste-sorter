@@ -20,16 +20,7 @@ export class DailyCategoryCountSchema extends BaseModel {
 }
 
 export class DailyStatSchema extends BaseModel {
-  static $columns = [
-    'agreements',
-    'costMicroEur',
-    'day',
-    'errors',
-    'images',
-    'rejectedDaily',
-    'rejectedMonthlyCap',
-    'rejectedPerMinute',
-  ] as const
+  static $columns = ['agreements', 'costMicroEur', 'day', 'errors', 'images', 'rejectedDaily', 'rejectedMonthlyCap', 'rejectedPerMinute'] as const
   $columns = DailyStatSchema.$columns
   @column()
   declare agreements: number
