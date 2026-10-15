@@ -27,7 +27,8 @@ async function filesContaining(dir: string, marker: Buffer, since: number): Prom
 }
 
 test('an uploaded image is never written to the tmp directory', async ({ request }) => {
-  const marker = randomBytes(32)
+  // No 0xFF bytes: inside JPEG scan data they would start a marker.
+  const marker = Buffer.from(randomBytes(32).map((byte) => (byte === 0xff ? 0xfe : byte)))
   const image = fakeJpeg(4096, marker)
   const since = Date.now() - 1000
 

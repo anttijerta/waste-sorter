@@ -18,7 +18,7 @@ flowchart LR
 ```
 
 1. The browser downscales the image and re-encodes it as JPEG.
-2. The server validates size (max 2 MB and 1024 px) and type, then sends the same image to both models in parallel.
+2. The server validates size (max 2 MB and 1024 px) and type, removes any metadata left in the JPEG, then sends the same image to both models in parallel.
 3. Each model must answer with structured output whose only field is one category id from a fixed list (`config/categories.ts`). Anything else counts as "unrecognized".
 4. If both models return the same category, they agree. If not, both answers are shown.
 5. Cost per call is token usage from the API response, reasoning tokens included, × the price table in `config/pricing.ts`. The UI shows each model's cost per image, session total, and what 1,000 images would cost.
@@ -27,7 +27,7 @@ flowchart LR
 
 - Images are never stored or logged by this app. They are held in memory only for the duration of the request.
 - To classify an image, the app sends it to the OpenAI API with response storage turned off (`store: false`). OpenAI's API data policies apply to that request.
-- EXIF metadata (such as location) is stripped in the browser, because the canvas re-encode does not keep it.
+- Metadata such as location is removed twice: in the browser, because the canvas re-encode does not keep it, and again on the server before the image is sent to the models. The server does not rely on the browser: it drops all EXIF, XMP, ICC and comment segments and anything after the end of the image, without re-encoding.
 - Rate limiting never stores the raw IP: the key is an HMAC-SHA256 of the IP with the app secret and the UTC date, so it cannot be linked across days. Usage rows are deleted after 35 days.
 
 ## 🚦 Usage limits

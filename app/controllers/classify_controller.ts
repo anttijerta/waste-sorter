@@ -6,6 +6,7 @@ import UsageService from '#usage/usage_service'
 import { hashIp } from '#usage/ip_hash'
 import { type LimitReason } from '#usage/limits'
 import { readJpegSize } from '#classifier/jpeg_size'
+import { stripJpegMetadata } from '#classifier/jpeg_strip'
 
 /**
  * The browser re-encodes every upload to JPEG and caps it at 1024 px,
@@ -71,10 +72,14 @@ export default class ClassifyController {
     if (!image || !image.subarray(0, 3).equals(JPEG_MAGIC)) {
       return response.unprocessableEntity({ error: INVALID_IMAGE })
     }
+    // The browser already strips metadata, but the server must not rely on
+    // it: EXIF (with GPS), XMP and other metadata segments are removed here,
+    // before the image reaches any classifier.
+    const clean = stripJpegMetadata(image)
     // The browser downscales to 1024 px. Checking it here keeps the token
     // estimate (config/pricing.ts) an upper bound for any client.
-    const size = readJpegSize(image)
-    if (!size || size.width > MAX_IMAGE_SIDE_PX || size.height > MAX_IMAGE_SIDE_PX) {
+    const size = clean ? readJpegSize(clean) : null
+    if (!clean || !size || size.width > MAX_IMAGE_SIDE_PX || size.height > MAX_IMAGE_SIDE_PX) {
       return response.unprocessableEntity({ error: INVALID_IMAGE })
     }
 
@@ -94,7 +99,7 @@ export default class ClassifyController {
 
     let result: ClassifyResponse | undefined
     try {
-      result = await this.classifyService.classify(image)
+      result = await this.classifyService.classify(clean)
       return result
     } finally {
       await this.usage.settle(reservation.id, this.classifyService.settledCostMicroEur(result))

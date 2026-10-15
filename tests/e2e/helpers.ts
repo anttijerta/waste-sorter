@@ -2,18 +2,32 @@
 import { type APIRequestContext, type Page, expect } from '@playwright/test'
 
 /**
- * A JPEG header with a 16×16 frame, then `payload`, zero-padded to `size`
- * bytes. The server only reads the header and the mock classifier does not
- * decode images, so this is enough for API-level tests.
+ * A structurally complete JPEG of exactly `size` bytes: a 16×16 frame
+ * header, a scan header, scan data starting with `payload` (zero-padded)
+ * and the end-of-image marker. The server only reads the segment structure
+ * and the mock classifier does not decode images, so this is enough for
+ * API-level tests.
+ *
+ * `payload` must not contain 0xFF: inside scan data that byte starts a
+ * marker.
  */
 export function fakeJpeg(size: number, payload: Buffer = Buffer.alloc(0)): Buffer {
-  // SOI, then a baseline frame header (SOF0): 8-bit, 16×16, one component
+  if (payload.includes(0xff)) {
+    throw new Error('fakeJpeg payload must not contain 0xFF')
+  }
   const header = Buffer.from([
-    0xff, 0xd8, 0xff, 0xc0, 0x00, 0x0b, 0x08, 0x00, 0x10, 0x00, 0x10, 0x01, 0x01, 0x11, 0x00,
+    // SOI
+    0xff, 0xd8,
+    // Baseline frame header (SOF0): 8-bit, 16×16, one component
+    0xff, 0xc0, 0x00, 0x0b, 0x08, 0x00, 0x10, 0x00, 0x10, 0x01, 0x01, 0x11, 0x00,
+    // Start of scan (SOS) for that component
+    0xff, 0xda, 0x00, 0x08, 0x01, 0x01, 0x00, 0x00, 0x3f, 0x00,
   ])
-  const buffer = Buffer.alloc(Math.max(size, header.length + payload.length))
+  const eoi = Buffer.from([0xff, 0xd9])
+  const buffer = Buffer.alloc(Math.max(size, header.length + payload.length + eoi.length))
   header.copy(buffer)
   payload.copy(buffer, header.length)
+  eoi.copy(buffer, buffer.length - eoi.length)
   return buffer
 }
 

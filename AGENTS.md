@@ -41,7 +41,9 @@ truth. Source: HSY sorting guide (Helsinki region).
 ## Product rules
 
 - Images are downscaled in the browser (max 1024 px, JPEG via canvas
-  re-encode, which also strips EXIF). The server re-validates size and type.
+  re-encode, which also strips EXIF). The server re-validates size and type
+  and removes all metadata segments (EXIF, XMP, ICC, comments) itself; it
+  never relies on the browser for that.
 - Images are never stored or logged. Store only counters and anonymous metrics.
 - Rate limiting uses a hashed IP, never the raw IP: HMAC-SHA256 with
   `APP_KEY`, with the UTC date in the message so hashes cannot be linked
