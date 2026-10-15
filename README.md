@@ -1,5 +1,7 @@
 # waste-sorter
 
+<!-- TODO at launch: link to the live demo and the blog post, and add a screenshot or GIF here. -->
+
 A portfolio demo that shows AI as one step inside a product, not as a chat: you upload a photo of an item, and two models sort it into a Helsinki region (HSY) waste category.
 
 ## 🔍 How it works
@@ -60,6 +62,20 @@ All settings are environment variables; `.env.example` lists them with local def
 2. Put it in `.env` as `MODEL_API_KEY=…` locally, or in your deployment's secrets. Never commit it.
 3. **Set a monthly budget or spend limit for that project at OpenAI.** `GLOBAL_MONTHLY_CAP_EUR` is an estimate kept by this app; the provider-side limit is the hard stop if something goes wrong.
 
+## 📊 Evaluation
+
+Baseline on 24 labelled photos (plus one out-of-scope item, not scored), 3 runs, reasoning effort `low`, run with `node ace eval --runs=3`:
+
+|                           | `gpt-6-luna`      | `gpt-6.1-sol`   |
+| ------------------------- | ----------------- | --------------- |
+| Accuracy, mean (min–max)  | 82 % (79–83 %)    | 97 % (92–100 %) |
+| Cost per 1,000 new images | about 0.14–0.17 € | about 2.5–3 €   |
+| Median latency            | 1.7 s             | 2.4 s           |
+
+Costs are for photos the models have not seen before; the upper end includes OpenAI's cache-write surcharge on new input. Repeating the same photos is far cheaper (about 0.04 € and 0.37 € per 1,000) because OpenAI serves most of the input from its prompt cache.
+
+Adding six HSY sorting rules to the prompt raised accuracy on this set (Luna 93 %, Sol 100 %) but lowered it on a separate 12-photo holdout set (Luna 88 → 85 %, Sol 100 → 94 %), so the baseline prompt was kept.
+
 ## 🧰 Tech stack
 
 | Area     | Tools                                       |
@@ -76,7 +92,7 @@ All settings are environment variables; `.env.example` lists them with local def
 - [x] 2. Docker image + CI workflow that pushes to GHCR
 - [x] 3. Usage caps: per IP and global monthly
 - [x] 4. Real model calls
-- [ ] 5. Eval script, UI polish, "show what happened" view
+- [x] 5. Eval script, UI polish, "show what happened" view
 
 On every push to `main`, CI runs the tests, then builds a linux/amd64 image and pushes it to `ghcr.io/anttijerta/waste-sorter`, tagged with the commit SHA and `latest`.
 
