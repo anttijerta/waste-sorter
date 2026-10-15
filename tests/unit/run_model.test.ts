@@ -24,7 +24,12 @@ describe('runModel', () => {
       IMAGE,
       log
     )
-    expect(result).toMatchObject({ category: 'glass', label: 'Lasi', costMicroEur: 6000 })
+    expect(result).toMatchObject({
+      category: 'glass',
+      label: 'Lasi',
+      costMicroEur: 6000,
+      usage: usage(300),
+    })
     expect(result.error).toBeNull()
     expect(log.warn).not.toHaveBeenCalled()
   })

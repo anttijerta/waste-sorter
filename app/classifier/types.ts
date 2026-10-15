@@ -21,6 +21,8 @@ export interface Classifier {
   readonly modelId: string
   /** True for the mock: its results are not real classifications. */
   readonly simulated: boolean
+  /** Reasoning effort sent with each call, for the "what happened" view */
+  readonly reasoningEffort?: string
   /**
    * Optional: resolves when the classifier may start a call (the eval uses
    * it for throttling). Awaited before latency is measured, so waiting

@@ -1,7 +1,7 @@
-import type { ClassifyResponse } from '../../app/services/classify_service'
+import type { ClassifyApiResponse, RequestSettings } from '../../app/services/classify_service'
 import type { LimitReason } from '../../app/usage/limits'
 
-export type { ClassifyResponse, LimitReason }
+export type { ClassifyApiResponse, LimitReason, RequestSettings }
 
 /**
  * Shield stores the CSRF token in the XSRF-TOKEN cookie and decodes the
@@ -22,7 +22,7 @@ export class ClassifyError extends Error {
   }
 }
 
-export async function classifyImage(image: Blob): Promise<ClassifyResponse> {
+export async function classifyImage(image: Blob): Promise<ClassifyApiResponse> {
   const body = new FormData()
   body.append('image', image, 'image.jpg')
 

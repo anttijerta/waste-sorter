@@ -87,6 +87,10 @@ export class OpenAIClassifier implements Classifier {
     private options: OpenAIClassifierOptions
   ) {}
 
+  get reasoningEffort(): ReasoningEffort {
+    return this.options.reasoningEffort
+  }
+
   async classify(image: Buffer): Promise<ClassifierOutput> {
     let response: Response
     try {

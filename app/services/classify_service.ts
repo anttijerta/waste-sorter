@@ -9,12 +9,33 @@ import { type PromptCacheMode } from '#classifier/openai_classifier'
 import { type ModelResult, runModel } from '#classifier/run_model'
 import { type Classifier } from '#classifier/types'
 import { type CategoryId, categoryLabel } from '#config/categories'
+import { CLASSIFY_PROMPT } from '#classifier/prompt'
+import { MAX_OUTPUT_TOKENS_PER_CALL } from '#config/models'
 
 export type { ModelResult }
 
 export type ClassifyResponse = {
   models: [ModelResult, ModelResult]
   agreement: { agreed: true; category: CategoryId; label: string } | { agreed: false }
+}
+
+/** What the server did with the upload before the models saw it. */
+export type PreparedImage = {
+  width: number
+  height: number
+  bytes: number
+  /** Bytes of EXIF, XMP and other metadata removed on the server */
+  metadataBytesRemoved: number
+}
+
+/** The /api/classify response: the results plus the image the models got. */
+export type ClassifyApiResponse = ClassifyResponse & { image: PreparedImage }
+
+/** What every call sends besides the image, for the "what happened" view. */
+export type RequestSettings = {
+  prompt: string
+  maxOutputTokens: number
+  models: { modelId: string; reasoningEffort: string | null }[]
 }
 
 export default class ClassifyService {
@@ -47,6 +68,21 @@ export default class ClassifyService {
       (sum, model) => sum + (model.costMicroEur ?? estimateCallCostMicroEur(model.modelId)),
       0
     )
+  }
+
+  /**
+   * The prompt and per-model settings sent with every image. The same for
+   * both models apart from the model id.
+   */
+  get requestSettings(): RequestSettings {
+    return {
+      prompt: CLASSIFY_PROMPT,
+      maxOutputTokens: MAX_OUTPUT_TOKENS_PER_CALL,
+      models: this.classifiers.map((classifier) => ({
+        modelId: classifier.modelId,
+        reasoningEffort: classifier.reasoningEffort ?? null,
+      })),
+    }
   }
 
   /**

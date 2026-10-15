@@ -11,6 +11,8 @@ export type ModelResult = {
   /** Integer micro-euros; null when the call failed without usage */
   costMicroEur: number | null
   error: string | null
+  /** Token usage reported by the API; null when the call failed without it */
+  usage: TokenUsage | null
 }
 
 /**
@@ -96,6 +98,7 @@ export async function runModel(
       latencyMs,
       costMicroEur: cost,
       error: null,
+      usage: output.usage,
     }
   } catch (error) {
     const usage = error instanceof ClassifierError ? error.usage : null
@@ -121,6 +124,7 @@ export async function runModel(
       latencyMs,
       costMicroEur: cost,
       error: FAILED_MESSAGE,
+      usage,
     }
   }
 }

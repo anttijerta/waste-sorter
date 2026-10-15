@@ -1,7 +1,10 @@
 import { inject } from '@adonisjs/core'
 import type { HttpContext } from '@adonisjs/core/http'
 import env from '#start/env'
-import ClassifyService, { type ClassifyResponse } from '#services/classify_service'
+import ClassifyService, {
+  type ClassifyApiResponse,
+  type ClassifyResponse,
+} from '#services/classify_service'
 import UsageService from '#usage/usage_service'
 import { hashIp } from '#usage/ip_hash'
 import { type LimitReason } from '#usage/limits'
@@ -100,7 +103,16 @@ export default class ClassifyController {
     let result: ClassifyResponse | undefined
     try {
       result = await this.classifyService.classify(clean)
-      return result
+      const body: ClassifyApiResponse = {
+        ...result,
+        image: {
+          width: size.width,
+          height: size.height,
+          bytes: clean.length,
+          metadataBytesRemoved: image.length - clean.length,
+        },
+      }
+      return body
     } finally {
       await this.usage.settle(
         reservation.id,

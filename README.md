@@ -120,7 +120,7 @@ node ace eval --yes --labels=labels-hard.csv   # another labels file in the data
 node ace eval --yes --cache-mode=explicit  # compare with prompt caching off (the app uses OpenAI's default caching)
 ```
 
-`EVAL_DATA_DIR` (or `--data-dir`) points to a folder outside this repo with `labels.csv` (`file,expected,difficulty,note`; difficulty is `easy`, `hard` or `oos`) and the photos in `images-jpg/`. Each photo is prepared like the browser does it (upright, max 1024 px, JPEG, metadata such as GPS removed) and classified with the app's own classifier code and settings, at most 20 calls per minute per model. Results go to `EVAL_DATA_DIR/results/` as JSON and Markdown. Without an API key it runs the simulated models and marks the results `mock`.
+`EVAL_DATA_DIR` (or `--data-dir`) points to a folder outside this repo with `labels.csv` (`file,expected,difficulty,note`; difficulty is `easy`, `hard` or `oos`) and the photos in `images-jpg/`. Each photo is prepared like the browser does it (upright, max 1024 px, JPEG, metadata such as GPS removed) and classified with the app's own classifier code and settings, at most 20 calls per minute per model. Results go to `EVAL_DATA_DIR/results/` as JSON and Markdown. The result line on the page comes from `config/eval_summary.ts`; update it after an eval run (a test fails if the prompt changed since). Without an API key it runs the simulated models and marks the results `mock`.
 
 Docker:
 

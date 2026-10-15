@@ -5,6 +5,7 @@
 
 /// <reference path="../../adonisrc.ts" />
 /// <reference path="../../config/categories.ts" />
+/// <reference path="../../config/eval_summary.ts" />
 /// <reference path="../../config/hash.ts" />
 /// <reference path="../../config/logger.ts" />
 /// <reference path="../../config/models.ts" />

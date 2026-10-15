@@ -2,14 +2,36 @@ import { Head } from '@inertiajs/react'
 import { type ChangeEvent, useEffect, useState } from 'react'
 import { type InertiaProps } from '~/types'
 import DefaultLayout from '~/layouts/default'
-import { downscaleToJpeg } from '~/lib/downscale'
-import { type ClassifyResponse, type LimitReason, ClassifyError, classifyImage } from '~/lib/api'
+import { type ImageSize, downscaleToJpeg } from '~/lib/downscale'
+import {
+  type ClassifyApiResponse,
+  type LimitReason,
+  type RequestSettings,
+  ClassifyError,
+  classifyImage,
+} from '~/lib/api'
+
+/** Sizes measured in the browser before upload */
+type BrowserStep = { original: ImageSize; prepared: ImageSize }
 
 type State =
   | { status: 'idle' }
   | { status: 'loading' }
-  | { status: 'done'; result: ClassifyResponse }
+  | { status: 'done'; result: ClassifyApiResponse; browser: BrowserStep }
   | { status: 'error'; message: string; limit: LimitReason | null }
+
+type EvalSummaryProps = {
+  date: string
+  images: number
+  runs: number
+  models: { modelId: string; accuracy: number }[]
+}
+
+type HomeProps = {
+  demoMode: boolean
+  requestSettings: RequestSettings
+  evalSummary: EvalSummaryProps
+}
 
 const eur = new Intl.NumberFormat('fi-FI', {
   style: 'currency',
@@ -26,7 +48,20 @@ function formatCost(microEur: number | null): string {
 /** Running cost per model in micro-euros, in the same order as `result.models`. */
 type SessionTotals = [number, number]
 
-export default function Home({ demoMode }: InertiaProps<{ demoMode: boolean }>) {
+const integer = new Intl.NumberFormat('fi-FI')
+
+function formatBytes(bytes: number): string {
+  return bytes >= 1024 * 1024
+    ? `${(bytes / 1024 / 1024).toLocaleString('fi-FI', { maximumFractionDigits: 1 })} Mt`
+    : `${Math.round(bytes / 1024)} kt`
+}
+
+function formatDate(isoDay: string): string {
+  const [year, month, day] = isoDay.split('-').map(Number)
+  return `${day}.${month}.${year}`
+}
+
+export default function Home({ demoMode, requestSettings, evalSummary }: InertiaProps<HomeProps>) {
   const [state, setState] = useState<State>({ status: 'idle' })
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [sessionTotals, setSessionTotals] = useState<SessionTotals>([0, 0])
@@ -44,10 +79,10 @@ export default function Home({ demoMode }: InertiaProps<{ demoMode: boolean }>) 
 
     setState({ status: 'loading' })
     try {
-      const jpeg = await downscaleToJpeg(file)
+      const { jpeg, original, prepared } = await downscaleToJpeg(file)
       setPreviewUrl(URL.createObjectURL(jpeg))
       const result = await classifyImage(jpeg)
-      setState({ status: 'done', result })
+      setState({ status: 'done', result, browser: { original, prepared } })
       setSessionTotals(([a, b]) => [
         a + (result.models[0].costMicroEur ?? 0),
         b + (result.models[1].costMicroEur ?? 0),
@@ -93,6 +128,16 @@ export default function Home({ demoMode }: InertiaProps<{ demoMode: boolean }>) 
           />
         </label>
         <p className="hint">Kuva pienennetään selaimessa eikä sitä tallenneta.</p>
+        <p className="hint" data-testid="hsy-note">
+          Luokat noudattavat HSY:n lajitteluohjetta (pääkaupunkiseutu).
+        </p>
+        <p className="hint" data-testid="eval-summary">
+          Testattu {evalSummary.images} kuvalla, {evalSummary.runs} kierrosta:{' '}
+          {evalSummary.models
+            .map((model) => `${model.modelId} noin ${Math.round(model.accuracy * 100)} %`)
+            .join(', ')}{' '}
+          oikein ({formatDate(evalSummary.date)}).
+        </p>
       </section>
 
       {previewUrl && (
@@ -102,7 +147,14 @@ export default function Home({ demoMode }: InertiaProps<{ demoMode: boolean }>) 
             {state.status === 'loading' && <p className="muted">Luokitellaan…</p>}
             {state.status === 'error' && <ErrorBanner {...state} />}
             {state.status === 'done' && (
-              <Results result={state.result} sessionTotals={sessionTotals} />
+              <>
+                <Results result={state.result} sessionTotals={sessionTotals} />
+                <WhatHappened
+                  result={state.result}
+                  browser={state.browser}
+                  settings={requestSettings}
+                />
+              </>
             )}
           </div>
         </section>
@@ -141,7 +193,7 @@ function Results({
   result,
   sessionTotals,
 }: {
-  result: ClassifyResponse
+  result: ClassifyApiResponse
   sessionTotals: SessionTotals
 }) {
   const { models } = result
@@ -221,6 +273,98 @@ function Results({
         </table>
       </div>
     </>
+  )
+}
+
+/**
+ * Step by step, what happened to the photo and what each model did.
+ * Collapsed by default.
+ */
+function WhatHappened({
+  result,
+  browser,
+  settings,
+}: {
+  result: ClassifyApiResponse
+  browser: BrowserStep
+  settings: RequestSettings
+}) {
+  const { original, prepared } = browser
+  const effort = (modelId: string) =>
+    settings.models.find((model) => model.modelId === modelId)?.reasoningEffort ?? null
+  const resized = original.width !== prepared.width || original.height !== prepared.height
+
+  return (
+    <details className="details" data-testid="what-happened">
+      <summary>Näytä mitä tapahtui</summary>
+      <ol className="steps">
+        <li data-testid="step-prepare">
+          <strong>Kuvan valmistelu.</strong>{' '}
+          {resized
+            ? `Selain pienensi kuvan ${original.width}×${original.height} px (${formatBytes(original.bytes)}) kokoon ${prepared.width}×${prepared.height} px (${formatBytes(prepared.bytes)}, JPEG).`
+            : `Kuva oli jo enintään 1024 px (${original.width}×${original.height} px), joten selain vain tallensi sen uudelleen JPEG-muotoon (${formatBytes(original.bytes)} → ${formatBytes(prepared.bytes)}).`}{' '}
+          Metatiedot, kuten sijainti, poistettiin selaimessa ja vielä palvelimella
+          {result.image.metadataBytesRemoved > 0
+            ? ` (palvelin poisti ${integer.format(result.image.metadataBytesRemoved)} tavua)`
+            : ''}
+          .
+        </li>
+        <li data-testid="step-sent">
+          <strong>Malleille lähetettiin</strong> sama kuva ({result.image.width}×
+          {result.image.height} px, {formatBytes(result.image.bytes)}) ja sama ohje:
+          <ul>
+            {result.models.map((model) => (
+              <li key={model.modelId}>
+                <span className="mono">{model.modelId}</span>:{' '}
+                {effort(model.modelId) ? `päättelytaso ${effort(model.modelId)}, ` : ''}
+                enintään {settings.maxOutputTokens} vastaustokenia
+              </li>
+            ))}
+          </ul>
+          <details className="details details--nested">
+            <summary>Näytä ohje</summary>
+            <pre className="prompt" data-testid="prompt">
+              {settings.prompt}
+            </pre>
+          </details>
+        </li>
+        <li data-testid="step-answers">
+          <strong>Vastaukset.</strong>
+          <ul>
+            {result.models.map((model) => (
+              <li key={model.modelId} data-testid="answer-row">
+                <span className="mono">{model.modelId}</span>: <strong>{model.label}</strong>
+                {model.error && <span className="row-error"> ({model.error})</span>}
+                <br />
+                <span data-testid="answer-tokens">
+                  {model.usage
+                    ? `${integer.format(model.usage.inputTokens)} syötetokenia${
+                        model.usage.cachedInputTokens > 0
+                          ? ` (välimuistista ${integer.format(model.usage.cachedInputTokens)})`
+                          : ''
+                      }, ${integer.format(model.usage.outputTokens)} vastaustokenia${
+                        model.usage.reasoningTokens > 0
+                          ? ` (päättely ${integer.format(model.usage.reasoningTokens)})`
+                          : ''
+                      }`
+                    : 'tokenit eivät tiedossa'}
+                </span>
+                {' · '}
+                <span data-testid="answer-cost">{formatCost(model.costMicroEur)}</span>
+                {' · '}
+                <span data-testid="answer-latency">{model.latencyMs} ms</span>
+              </li>
+            ))}
+          </ul>
+        </li>
+        <li data-testid="step-agreement">
+          <strong>Vertailu.</strong>{' '}
+          {result.agreement.agreed
+            ? `Mallit olivat samaa mieltä: ${result.agreement.label}.`
+            : 'Mallit olivat eri mieltä, joten molemmat vastaukset näytetään.'}
+        </li>
+      </ol>
+    </details>
   )
 }
 
