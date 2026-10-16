@@ -10,7 +10,7 @@ the user only uploads an image and sees results.
 - AdonisJS v7 + Inertia + React + TypeScript
 - SQLite for usage counters
 - Single Docker container, listens on `PORT`, exposes `GET /health`
-- Deployed by a separate private `infra` repo. Do not add server or
+- Deployed by a separate `infra` repo. Do not add server or
   deployment config here beyond the Dockerfile and the CI workflow.
 
 ## Language
