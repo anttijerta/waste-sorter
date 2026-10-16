@@ -1,6 +1,10 @@
 # waste-sorter
 
-<!-- TODO at launch: link to the live demo and the blog post, and add a screenshot or GIF here. -->
+**Live demo:** https://waste-sorter.jerta.fi
+
+<!-- TODO: add blog post link here -->
+
+![Waste sorter screenshot](docs/screenshot.png)
 
 A portfolio demo that shows AI as one step inside a product, not as a chat: you upload a photo of an item, and two models sort it into a Helsinki region (HSY) waste category.
 
