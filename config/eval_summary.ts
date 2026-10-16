@@ -1,6 +1,6 @@
 /**
  * The latest eval result shown on the page. Update after each eval run
- * (node ace eval --runs=3). A unit test checks that promptSha256 matches
+ * (node ace eval --yes --runs=3). A unit test checks that promptSha256 matches
  * the current prompt, so a prompt change cannot leave stale numbers here.
  */
 export const EVAL_SUMMARY = {

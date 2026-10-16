@@ -64,17 +64,19 @@ All settings are environment variables; `.env.example` lists them with local def
 
 ## 📊 Evaluation
 
-Baseline on 24 labelled photos (plus one out-of-scope item, not scored), 3 runs, reasoning effort `low`, run with `node ace eval --runs=3`:
+Baseline on 24 labelled photos (plus one out-of-scope item, not scored), 3 runs, reasoning effort `low`, run with `node ace eval --yes --runs=3`:
 
 |                           | `gpt-6-luna`      | `gpt-6.1-sol`   |
 | ------------------------- | ----------------- | --------------- |
 | Accuracy, mean (min–max)  | 82 % (79–83 %)    | 97 % (92–100 %) |
-| Cost per 1,000 new images | about 0.14–0.17 € | about 2.5–3 €   |
+| Cost per 1,000 new images | about 0.13–0.17 € | about 2.5–3 €   |
 | Median latency            | 1.7 s             | 2.4 s           |
 
 Costs are for photos the models have not seen before; the upper end includes OpenAI's cache-write surcharge on new input. Repeating the same photos is far cheaper (about 0.04 € and 0.37 € per 1,000) because OpenAI serves most of the input from its prompt cache.
 
-Adding six HSY sorting rules to the prompt raised accuracy on this set (Luna 93 %, Sol 100 %) but lowered it on a separate 12-photo holdout set (Luna 88 → 85 %, Sol 100 → 94 %), so the baseline prompt was kept.
+Costs are the token counts reported by the API × the price table in `config/pricing.ts` (prices checked on 2026-10-14), with USD prices counted 1:1 as EUR. For `gpt-6.1-sol`, 2.5–3 € is the measured range; the upper end is a run billed with cache writes. For `gpt-6-luna`, the measured range is 0.13–0.14 €; the upper end of 0.17 € is computed, not measured, by billing all input as cache writes (1.25× the input rate).
+
+Adding six HSY sorting rules to the prompt raised accuracy on this set (Luna 93 %, Sol 100 %) but lowered it on a separate 12-photo holdout set (11 scored + 1 out of scope; Luna 88 → 85 %, Sol 100 → 94 %), so the baseline prompt was kept.
 
 ## 🧰 Tech stack
 
@@ -132,7 +134,7 @@ node ace eval                # dry run: prints the number of calls and the worst
 node ace eval --yes          # runs both models in parallel per image, like the app
 node ace eval --yes --sequential   # one model after the other, to compare latency
 node ace eval --yes --runs=3       # repeat the set, report consistency and accuracy ranges
-node ace eval --yes --labels=labels-hard.csv   # another labels file in the data folder
+node ace eval --yes --runs=3 --labels=labels-holdout.csv   # the holdout set in the data folder
 node ace eval --yes --cache-mode=explicit  # compare with prompt caching off (the app uses OpenAI's default caching)
 ```
 
