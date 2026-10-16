@@ -29,6 +29,7 @@ export default await Env.create(new URL('../', import.meta.url), {
   MODEL_A: Env.schema.string.optional(),
   MODEL_B: Env.schema.string.optional(),
   MODEL_API_KEY: Env.schema.secret.optional(),
+  ALLOW_MOCK_MODELS: Env.schema.boolean.optional(),
   MODEL_REASONING_EFFORT: Env.schema.string.optional(),
   MODEL_TIMEOUT_MS: Env.schema.number.optional(),
 

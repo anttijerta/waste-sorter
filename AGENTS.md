@@ -73,7 +73,10 @@ truth. Source: HSY sorting guide (Helsinki region).
 
 - `MODEL_A`, `MODEL_B`: model ids (default `gpt-6-luna`, `gpt-6.1-sol`)
 - `MODEL_API_KEY`: never in code, images, logs or the repo. Empty means demo
-  mode with mock classifiers.
+  mode with mock classifiers in development and test; in production the app
+  refuses to start unless `ALLOW_MOCK_MODELS=true`.
+- `ALLOW_MOCK_MODELS` (default `false`): explicit opt-in to demo mode in
+  production, e.g. a keyless `docker run`. A key always wins over the flag.
 - `MODEL_REASONING_EFFORT` (default `low`): one value for both models,
   validated per model at startup
 - `MODEL_TIMEOUT_MS` (default 20000): per call, no automatic retries
@@ -111,7 +114,8 @@ Step 3 must also (done):
 
 Step 4 must also (done):
 
-- Fall back to the mock classifier when `MODEL_API_KEY` is missing.
+- Fall back to the mock classifier when `MODEL_API_KEY` is missing (in
+  production only with `ALLOW_MOCK_MODELS=true`).
 - Keep the demo mode label (already in place) tied to the fallback: it
   shows whenever any model is simulated and disappears with real models.
 - Add a "Configuration" section to the README: an env var table, how to

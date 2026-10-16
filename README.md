@@ -6,7 +6,7 @@ A portfolio demo that shows AI as one step inside a product, not as a chat: you 
 
 ## 🔍 How it works
 
-Model A is `gpt-6-luna` and model B is `gpt-6.1-sol`, both called through the OpenAI Responses API with the same prompt, image and reasoning effort. Without an API key the app runs in **demo mode**: both models are simulated, and the UI says so.
+Model A is `gpt-6-luna` and model B is `gpt-6.1-sol`, both called through the OpenAI Responses API with the same prompt, image and reasoning effort. Without an API key the app runs in **demo mode**: both models are simulated, and the UI says so. In production this needs `ALLOW_MOCK_MODELS=true`; otherwise a missing key stops the app at startup, so a deployment never shows simulated results by accident.
 
 ```mermaid
 flowchart LR
@@ -46,7 +46,8 @@ All settings are environment variables; `.env.example` lists them with local def
 | Variable                       | Default                     | Purpose                                                                                               |
 | ------------------------------ | --------------------------- | ----------------------------------------------------------------------------------------------------- |
 | `APP_KEY`                      | (required)                  | App secret, also the key for hashing IPs. Generate with `node ace generate:key`.                      |
-| `MODEL_API_KEY`                | empty                       | OpenAI API key. Empty means demo mode with simulated models.                                          |
+| `MODEL_API_KEY`                | empty                       | OpenAI API key. Empty means demo mode; in production only with `ALLOW_MOCK_MODELS=true`.              |
+| `ALLOW_MOCK_MODELS`            | `false`                     | `true` allows demo mode in production. Without it, production refuses to start without a key.         |
 | `MODEL_A`, `MODEL_B`           | `gpt-6-luna`, `gpt-6.1-sol` | Model ids. Each needs a price in `config/pricing.ts` and its reasoning efforts in `config/models.ts`. |
 | `MODEL_REASONING_EFFORT`       | `low`                       | Same for both models. The app refuses to start if a model does not support it.                        |
 | `MODEL_TIMEOUT_MS`             | `20000`                     | Timeout per model call. Calls are never retried automatically.                                        |
@@ -145,6 +146,9 @@ Docker:
 ```sh
 docker build -t waste-sorter .
 docker run --rm -p 3333:3333 -v waste-sorter-data:/app/data \
-  -e APP_KEY=<random 32+ char string> waste-sorter
+  -e APP_KEY=<random 32+ char string> \
+  -e ALLOW_MOCK_MODELS=true \
+  waste-sorter
+# Demo mode with simulated models. For the real models, pass -e MODEL_API_KEY=… instead.
 curl http://localhost:3333/health
 ```

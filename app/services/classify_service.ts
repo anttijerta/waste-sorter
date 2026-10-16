@@ -100,6 +100,8 @@ export default class ClassifyService {
     const setup = createClassifiers({
       apiKey: env.get('MODEL_API_KEY')?.release(),
       inTest: app.inTest,
+      inProduction: app.inProduction,
+      allowMockModels: env.get('ALLOW_MOCK_MODELS', false),
       modelA: env.get('MODEL_A'),
       modelB: env.get('MODEL_B'),
       reasoningEffort: env.get('MODEL_REASONING_EFFORT'),

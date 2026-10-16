@@ -2,6 +2,13 @@ import { describe, expect, it, vi } from 'vitest'
 import { type ClassifierSettings, createClassifiers } from '#classifier/factory'
 import { MockClassifier } from '#classifier/mock_classifier'
 import { OpenAIClassifier } from '#classifier/openai_classifier'
+import ClassifyService from '#services/classify_service'
+
+// The logger service needs a booted Adonis app; logging is not under test here.
+vi.mock('@adonisjs/core/services/logger', async () => {
+  const { Logger } = await import('@adonisjs/core/logger')
+  return { default: new Logger({ enabled: false }) }
+})
 
 /** createClient is a spy, so no test can construct a real OpenAI client. */
 function settings(overrides: Partial<ClassifierSettings> = {}) {
@@ -9,6 +16,8 @@ function settings(overrides: Partial<ClassifierSettings> = {}) {
   const value: ClassifierSettings = {
     apiKey: undefined,
     inTest: false,
+    inProduction: false,
+    allowMockModels: false,
     modelA: 'gpt-6-luna',
     modelB: 'gpt-6.1-sol',
     reasoningEffort: undefined,
@@ -21,7 +30,7 @@ function settings(overrides: Partial<ClassifierSettings> = {}) {
 }
 
 describe('createClassifiers', () => {
-  it('falls back to the mock classifiers when MODEL_API_KEY is missing or empty', () => {
+  it('falls back to the mock classifiers in development when MODEL_API_KEY is missing or empty', () => {
     for (const apiKey of [undefined, '']) {
       const { value, createClient } = settings({ apiKey })
       const setup = createClassifiers(value)
@@ -31,6 +40,47 @@ describe('createClassifiers', () => {
       expect(setup.classifiers.every((c) => c instanceof MockClassifier && c.simulated)).toBe(true)
       expect(createClient).not.toHaveBeenCalled()
     }
+  })
+
+  describe('in production', () => {
+    it('refuses to start without MODEL_API_KEY unless ALLOW_MOCK_MODELS is set', () => {
+      // UsageProvider.ready() builds the classifiers at boot, so this stops the app.
+      for (const apiKey of [undefined, '']) {
+        const { value, createClient } = settings({ apiKey, inProduction: true })
+        expect(() => createClassifiers(value)).toThrow(/MODEL_API_KEY.*ALLOW_MOCK_MODELS/s)
+        expect(createClient).not.toHaveBeenCalled()
+      }
+    })
+
+    it('runs the mock classifiers in demo mode when ALLOW_MOCK_MODELS is set', () => {
+      const { value, createClient } = settings({ inProduction: true, allowMockModels: true })
+      const setup = createClassifiers(value)
+
+      expect(setup.mode).toBe('mock')
+      expect(setup.classifiers.map((c) => c.modelId)).toEqual(['mock-a', 'mock-b'])
+      expect(setup.classifiers.every((c) => c instanceof MockClassifier && c.simulated)).toBe(true)
+      expect(createClient).not.toHaveBeenCalled()
+      // demoMode is the page prop that shows "Demotila: mallit ovat simuloituja."
+      expect(new ClassifyService(setup.classifiers).demoMode).toBe(true)
+    })
+
+    it('uses the real classifiers when a key is set, with or without the flag', () => {
+      for (const allowMockModels of [false, true]) {
+        const { value, createClient } = settings({
+          apiKey: 'not-a-real-key',
+          inProduction: true,
+          allowMockModels,
+        })
+        const setup = createClassifiers(value)
+
+        expect(setup.mode).toBe('openai')
+        expect(setup.classifiers.every((c) => c instanceof OpenAIClassifier && !c.simulated)).toBe(
+          true
+        )
+        expect(createClient).toHaveBeenCalledOnce()
+        expect(new ClassifyService(setup.classifiers).demoMode).toBe(false)
+      }
+    })
   })
 
   it('never uses the real API in the test environment, even with a key', () => {
