@@ -8,6 +8,8 @@
 
 A portfolio demo that shows AI as one step inside a product, not as a chat: you upload a photo of an item, and two models sort it into a Helsinki region (HSY) waste category.
 
+Two models run side by side to make the cost/accuracy trade-off visible: on the test set below, `gpt-6.1-sol` costs about 20× as much per image as `gpt-6-luna` and is right 97 % of the time versus 82 %.
+
 ## 🔍 How it works
 
 Model A is `gpt-6-luna` and model B is `gpt-6.1-sol`, both called through the OpenAI Responses API with the same prompt, image and reasoning effort. Without an API key the app runs in **demo mode**: both models are simulated, and the UI says so. In production this needs `ALLOW_MOCK_MODELS=true`; otherwise a missing key stops the app at startup, so a deployment never shows simulated results by accident.
@@ -69,7 +71,7 @@ All settings are environment variables; `.env.example` lists them with local def
 
 ## 📊 Evaluation
 
-Baseline on 24 labelled photos (plus one out-of-scope item, not scored), 3 runs, reasoning effort `low`, run with `node ace eval --yes --runs=3`:
+Baseline on 24 labelled photos (plus one out-of-scope item, not scored), 3 runs, reasoning effort `low`, run with `node ace eval --yes --runs=3`. The labelled photos are not published with this repo.
 
 |                           | `gpt-6-luna`      | `gpt-6.1-sol`   |
 | ------------------------- | ----------------- | --------------- |
@@ -93,15 +95,11 @@ Adding six HSY sorting rules to the prompt raised accuracy on this set (Luna 93 
 | Models   | OpenAI Responses API, official `openai` SDK |
 | Runtime  | Docker, single container, `GET /health`     |
 
-## 📋 Status
-
-- [x] 1. Skeleton with a mock classifier
-- [x] 2. Docker image + CI workflow that pushes to GHCR
-- [x] 3. Usage caps: per IP and global monthly
-- [x] 4. Real model calls
-- [x] 5. Eval script, UI polish, "show what happened" view
+## 🚀 Deployment
 
 On every push to `main`, CI runs the tests, then builds a linux/amd64 image and pushes it to `ghcr.io/anttijerta/waste-sorter`, tagged with the commit SHA and `latest`.
+
+Deployed with Docker Compose behind Caddy, see https://github.com/anttijerta/infra.
 
 ## 💻 Run locally
 
