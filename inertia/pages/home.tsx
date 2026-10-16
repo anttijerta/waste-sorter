@@ -20,7 +20,7 @@ type State =
   | { status: 'done'; result: ClassifyApiResponse; browser: BrowserStep }
   | { status: 'error'; message: string; limit: LimitReason | null }
 
-type EvalSummaryProps = {
+type EvalSetProps = {
   date: string
   images: number
   runs: number
@@ -30,7 +30,9 @@ type EvalSummaryProps = {
 type HomeProps = {
   demoMode: boolean
   requestSettings: RequestSettings
-  evalSummary: EvalSummaryProps
+  /** First 7 hex characters of the live prompt's SHA-256 */
+  promptVersion: string
+  evalSummary: { testSet: EvalSetProps; holdout: EvalSetProps }
 }
 
 const eur = new Intl.NumberFormat('fi-FI', {
@@ -61,7 +63,23 @@ function formatDate(isoDay: string): string {
   return `${day}.${month}.${year}`
 }
 
-export default function Home({ demoMode, requestSettings, evalSummary }: InertiaProps<HomeProps>) {
+/** "gpt-6-luna noin 82 %, gpt-6.1-sol 100 %": a perfect score is exact. */
+function formatAccuracies(models: EvalSetProps['models']): string {
+  return models
+    .map((model) => {
+      const percent = Math.round(model.accuracy * 100)
+      return `${model.modelId} ${percent === 100 ? '' : 'noin '}${percent} %`
+    })
+    .join(', ')
+}
+
+export default function Home({
+  demoMode,
+  requestSettings,
+  promptVersion,
+  evalSummary,
+}: InertiaProps<HomeProps>) {
+  const { testSet, holdout } = evalSummary
   const [state, setState] = useState<State>({ status: 'idle' })
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [sessionTotals, setSessionTotals] = useState<SessionTotals>([0, 0])
@@ -132,11 +150,17 @@ export default function Home({ demoMode, requestSettings, evalSummary }: Inertia
           Luokat noudattavat HSY:n lajitteluohjetta (pääkaupunkiseutu).
         </p>
         <p className="hint" data-testid="eval-summary">
-          Testattu {evalSummary.images} kuvalla, {evalSummary.runs} kierrosta:{' '}
-          {evalSummary.models
-            .map((model) => `${model.modelId} noin ${Math.round(model.accuracy * 100)} %`)
-            .join(', ')}{' '}
-          oikein ({formatDate(evalSummary.date)}).
+          <span data-testid="eval-test-set">
+            Testattu {testSet.images} kuvalla, {testSet.runs} kierrosta:{' '}
+            {formatAccuracies(testSet.models)} oikein ({formatDate(testSet.date)}).
+          </span>{' '}
+          <span data-testid="eval-holdout">
+            Erillisellä varmistusjoukolla ({holdout.images} kuvaa, {holdout.runs} kierrosta):{' '}
+            {formatAccuracies(holdout.models)} oikein ({formatDate(holdout.date)}).
+          </span>{' '}
+          <span data-testid="eval-prompt-version">
+            Ohjeversio <span className="mono">{promptVersion}</span>.
+          </span>
         </p>
       </section>
 
@@ -153,6 +177,7 @@ export default function Home({ demoMode, requestSettings, evalSummary }: Inertia
                   result={state.result}
                   browser={state.browser}
                   settings={requestSettings}
+                  promptVersion={promptVersion}
                 />
               </>
             )}
@@ -284,10 +309,12 @@ function WhatHappened({
   result,
   browser,
   settings,
+  promptVersion,
 }: {
   result: ClassifyApiResponse
   browser: BrowserStep
   settings: RequestSettings
+  promptVersion: string
 }) {
   const { original, prepared } = browser
   const effort = (modelId: string) =>
@@ -311,7 +338,11 @@ function WhatHappened({
         </li>
         <li data-testid="step-sent">
           <strong>Malleille lähetettiin</strong> sama kuva ({result.image.width}×
-          {result.image.height} px, {formatBytes(result.image.bytes)}) ja sama ohje:
+          {result.image.height} px, {formatBytes(result.image.bytes)}) ja sama ohje (versio{' '}
+          <span className="mono" data-testid="sent-prompt-version">
+            {promptVersion}
+          </span>
+          ):
           <ul>
             {result.models.map((model) => (
               <li key={model.modelId}>

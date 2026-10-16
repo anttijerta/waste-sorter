@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto'
 import { CATEGORIES } from '#config/categories'
 
 /**
@@ -13,3 +14,9 @@ export const CLASSIFY_PROMPT = [
   '',
   'If the photo does not show a recognizable waste item, answer "unrecognized".',
 ].join('\n')
+
+/**
+ * Short version of the live prompt: the first 7 hex characters of its
+ * SHA-256, the same hash the eval reports and config/eval_summary.ts use.
+ */
+export const PROMPT_VERSION = createHash('sha256').update(CLASSIFY_PROMPT).digest('hex').slice(0, 7)

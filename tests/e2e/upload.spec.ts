@@ -11,9 +11,14 @@ test('uploading a photo shows results from both models', async ({ page }) => {
     'Luokat noudattavat HSY:n lajitteluohjetta (pääkaupunkiseutu).'
   )
   // From config/eval_summary.ts
-  await expect(page.getByTestId('eval-summary')).toHaveText(
-    'Testattu 24 kuvalla, 3 kierrosta: gpt-6-luna noin 82 %, gpt-6.1-sol noin 97 % oikein (15.10.2026).'
+  await expect(page.getByTestId('eval-test-set')).toHaveText(
+    'Testattu 24 kuvalla, 3 kierrosta: gpt-6-luna noin 82 %, gpt-6.1-sol noin 97 % oikein (14.10.2026).'
   )
+  await expect(page.getByTestId('eval-holdout')).toHaveText(
+    'Erillisellä varmistusjoukolla (11 kuvaa, 3 kierrosta): gpt-6-luna noin 88 %, gpt-6.1-sol 100 % oikein (15.10.2026).'
+  )
+  // The hash itself is pinned to the measured prompt by tests/unit/eval_summary.test.ts
+  await expect(page.getByTestId('eval-prompt-version')).toHaveText(/^Ohjeversio [0-9a-f]{7}\.$/)
 
   const image = await drawTestJpeg(page)
 
@@ -74,6 +79,12 @@ test('"Näytä mitä tapahtui" explains each step of the last image', async ({ p
   await expect(sent).toContainText('sama kuva (1024×768 px')
   await expect(sent.locator('ul > li')).toHaveCount(2)
   await expect(sent).toContainText('enintään 800 vastaustokenia')
+  // The prompt sent is the version the eval line names
+  const evalVersion = (await page.getByTestId('eval-prompt-version').textContent())!
+  await expect(sent.getByTestId('sent-prompt-version')).toHaveText(
+    evalVersion.replace(/^Ohjeversio (\w+)\.$/, '$1')
+  )
+  await expect(sent).toContainText('ja sama ohje (versio')
   await sent.getByText('Näytä ohje').click()
   await expect(page.getByTestId('prompt')).toContainText('Categories (id: Finnish name):')
 
