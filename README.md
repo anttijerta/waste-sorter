@@ -1,8 +1,8 @@
 # waste-sorter
 
-**Live demo:** https://waste-sorter.jerta.fi
+**Blog post (in Finnish):** https://www.jerta.fi/blog/jatelajittelija/
 
-<!-- TODO: add blog post link here -->
+The live demo is no longer online. You can run it locally with Docker without an API key, see Run locally below.
 
 ![Waste sorter screenshot](docs/screenshot.png)
 
@@ -99,7 +99,7 @@ Adding six HSY sorting rules to the prompt raised accuracy on this set (Luna 93 
 
 On every push to `main`, CI runs the tests, then builds a linux/amd64 image and pushes it to `ghcr.io/anttijerta/waste-sorter`, tagged with the commit SHA and `latest`.
 
-Deployed with Docker Compose behind Caddy, see https://github.com/anttijerta/infra.
+The demo was deployed with Docker Compose behind Caddy; the setup is documented in https://github.com/anttijerta/infra.
 
 ## 💻 Run locally
 

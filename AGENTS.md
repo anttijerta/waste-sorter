@@ -122,8 +122,9 @@ Step 4 must also (done):
   get your own key, and a recommendation to set a spend cap at the
   provider.
 
-At launch: add links to the live demo and the blog post, plus a
-screenshot or GIF, at the top of the README.
+Launch (done): the README shows the blog post link and a screenshot at
+the top. The live demo has been shut down permanently; do not add links
+to it or claim it is online.
 
 ## Constraints
 
